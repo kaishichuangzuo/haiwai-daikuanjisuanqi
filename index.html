@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Calculator - International</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'pulse-once': 'pulseOnce 0.6s ease-in-out',
+                        'shake': 'shake 0.5s ease-in-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        pulseOnce: {
+                            '0%, 100%': { transform: 'scale(1)' },
+                            '50%': { transform: 'scale(1.02)' },
+                        },
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '25%': { transform: 'translateX(-5px)' },
+                            '75%': { transform: 'translateX(5px)' },
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .input-focus-ring {
+                transition: all 0.3s ease;
+            }
+            .input-focus-ring:focus {
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+                border-color: #3b82f6;
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+            }
+            .btn-primary {
+                transition: all 0.2s ease;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+            }
+            .btn-primary:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+            }
+            .btn-secondary {
+                transition: all 0.2s ease;
+            }
+            .btn-secondary:hover {
+                background-color: #e5e7eb;
+            }
+            .error-border {
+                border-color: #ef4444 !important;
+                animation: shake 0.5s ease-in-out;
+            }
+            .success-border {
+                border-color: #10b981 !important;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fa fa-calculator text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800" data-i18n="header.title">Loan Calculator</h1>
+                        <p class="text-xs text-gray-500" data-i18n="header.subtitle">Calculate your loan payments</p>
+                    </div>
+                </div>
+                <!-- Language Switcher -->
+                <div class="flex items-center space-x-2">
+                    <button id="lang-en" class="lang-btn px-3 py-1.5 bg-primary-100 text-primary-700 rounded-full text-sm font-medium transition-all hover:bg-primary-200 active">
+                        EN
+                    </button>
+                    <button id="lang-es" class="lang-btn px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium transition-all hover:bg-gray-200">
+                        ES
+                    </button>
+                    <button id="lang-fr" class="lang-btn px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium transition-all hover:bg-gray-200">
+                        FR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Calculator Card -->
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden mb-8 animate-fade-in">
+            <!-- Card Header -->
+            <div class="bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 px-6 py-6">
+                <h2 class="text-xl md:text-2xl font-bold text-white" data-i18n="calculator.title">Loan Calculator</h2>
+                <p class="text-white/80 text-sm mt-1" data-i18n="calculator.subtitle">Enter your loan details to calculate monthly payments</p>
+            </div>
+            
+            <!-- Calculator Form -->
+            <div class="p-6 md:p-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Currency & Amount -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.currency">Currency</label>
+                        <div class="relative mb-4">
+                            <select id="currency" class="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 text-gray-800 font-medium focus:outline-none input-focus-ring">
+                                <option value="USD">USD ($) - United States Dollar</option>
+                                <option value="EUR">EUR (€) - Euro</option>
+                                <option value="GBP">GBP (£) - British Pound</option>
+                                <option value="JPY">JPY (¥) - Japanese Yen</option>
+                                <option value="AUD">AUD ($) - Australian Dollar</option>
+                                <option value="CAD">CAD ($) - Canadian Dollar</option>
+                                <option value="CHF">CHF (Fr) - Swiss Franc</option>
+                                <option value="CNY">CNY (¥) - Chinese Yuan</option>
+                                <option value="SGD">SGD ($) - Singapore Dollar</option>
+                                <option value="NZD">NZD ($) - New Zealand Dollar</option>
+                            </select>
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <i class="fa fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.amount">Loan Amount</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-lg" id="currencySymbol">$</span>
+                            <input 
+                                type="text" 
+                                id="loanAmount" 
+                                placeholder="100,000"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-800 font-medium text-lg focus:outline-none input-focus-ring"
+                            >
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1" data-i18n="form.amountHint">Enter the principal loan amount</p>
+                    </div>
+
+                    <!-- Loan Term -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.term">Loan Term</label>
+                        <div class="relative">
+                            <div class="flex items-center space-x-4">
+                                <input 
+                                    type="number" 
+                                    id="loanTermInput" 
+                                    value="30"
+                                    min="1"
+                                    max="30"
+                                    class="w-24 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium text-center focus:outline-none input-focus-ring"
+                                >
+                                <div class="flex-1">
+                                    <input 
+                                        type="range" 
+                                        id="loanTermSlider" 
+                                        min="1" 
+                                        max="30" 
+                                        value="30"
+                                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                                    >
+                                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                        <span>1 {{isTermInYears ? 'year' : 'month'}}</span>
+                                        <span>30 {{isTermInYears ? 'years' : 'months'}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2 mt-4">
+                                <button id="termYears" class="term-btn flex-1 py-2 bg-primary-100 text-primary-700 rounded-lg font-medium text-sm transition-all hover:bg-primary-200 active">
+                                    <span data-i18n="form.years">Years</span>
+                                </button>
+                                <button id="termMonths" class="term-btn flex-1 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium text-sm transition-all hover:bg-gray-200">
+                                    <span data-i18n="form.months">Months</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interest Rate -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.rate">Annual Interest Rate</label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="interestRate" 
+                                value="4.50"
+                                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium text-lg focus:outline-none input-focus-ring"
+                            >
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-lg">%</span>
+                        </div>
+                        <div class="mt-4">
+                            <input 
+                                type="range" 
+                                id="interestRateSlider" 
+                                min="0.1" 
+                                max="20" 
+                                step="0.1"
+                                value="4.5"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                            >
+                            <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                <span>0.1%</span>
+                                <span>20%</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2" data-i18n="form.rateHint">Annual interest rate (0.1% - 20%)</p>
+                    </div>
+
+                    <!-- Loan Type & Calculation Method -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.type">Loan Type</label>
+                        <div class="relative mb-4">
+                            <select id="loanType" class="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 text-gray-800 font-medium focus:outline-none input-focus-ring">
+                                <option value="fixed">Fixed Rate</option>
+                                <option value="adjustable">Adjustable Rate</option>
+                                <option value="interest-only">Interest Only</option>
+                                <option value="balloon">Balloon Payment</option>
+                                <option value="graduated">Graduated Payment</option>
+                            </select>
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <i class="fa fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.method">Calculation Method</label>
+                        <div class="flex space-x-2">
+                            <button id="method-amortizing" class="method-btn flex-1 py-2 bg-primary-100 text-primary-700 rounded-lg font-medium text-sm transition-all hover:bg-primary-200 active">
+                                <span data-i18n="form.amortizing">Amortizing</span>
+                            </button>
+                            <button id="method-interest-only" class="method-btn flex-1 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium text-sm transition-all hover:bg-gray-200">
+                                <span data-i18n="form.interestOnly">Interest Only</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Messages -->
+                <div id="errorMessages" class="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl hidden">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <i class="fa fa-exclamation-circle text-red-500"></i>
+                        <span class="font-medium text-red-700" data-i18n="error.title">Please fix the following errors:</span>
+                    </div>
+                    <ul class="text-sm text-red-600 space-y-1" id="errorList"></ul>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4 mt-6">
+                    <button id="calculateBtn" class="btn-primary flex-1 bg-gradient-to-r from-primary-600 to-indigo-600 text-white font-semibold py-4 rounded-xl flex items-center justify-center space-x-2">
+                        <i class="fa fa-calculator"></i>
+                        <span data-i18n="btn.calculate">Calculate</span>
+                    </button>
+                    <button id="resetBtn" class="btn-secondary px-6 py-4 bg-gray-100 text-gray-700 font-semibold rounded-xl flex items-center justify-center space-x-2">
+                        <i class="fa fa-refresh"></i>
+                        <span data-i18n="btn.reset">Reset</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-slide-up">
+                <!-- Monthly Payment -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-gray-500 text-sm" data-i18n="result.monthly">Monthly Payment</span>
+                        <div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+                            <i class="fa fa-calendar text-primary-600"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-1">
+                        <span class="text-gray-400 text-lg" id="monthlyCurrency">$</span>
+                        <span class="text-4xl font-bold text-gray-800" id="monthlyPayment">0.00</span>
+                    </div>
+                </div>
+
+                <!-- Total Payment -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-gray-500 text-sm" data-i18n="result.total">Total Payment</span>
+                        <div class="w-10 h-10 bg-success/10 rounded-xl flex items-center justify-center">
+                            <i class="fa fa-money text-success"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-1">
+                        <span class="text-gray-400 text-lg" id="totalCurrency">$</span>
+                        <span class="text-4xl font-bold text-gray-800" id="totalPayment">0.00</span>
+                    </div>
+                </div>
+
+                <!-- Total Interest -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-gray-500 text-sm" data-i18n="result.interest">Total Interest</span>
+                        <div class="w-10 h-10 bg-warning/10 rounded-xl flex items-center justify-center">
+                            <i class="fa fa-chart-line text-warning"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-1">
+                        <span class="text-gray-400 text-lg" id="interestCurrency">$</span>
+                        <span class="text-4xl font-bold text-gray-800" id="totalInterest">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 animate-slide-up">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="chart.title">Payment Breakdown</h3>
+                <div class="flex flex-col md:flex-row items-center gap-6">
+                    <div class="w-full md:w-1/2">
+                        <canvas id="pieChart" width="300" height="300"></canvas>
+                    </div>
+                    <div class="w-full md:w-1/2 space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-4 h-4 rounded-full bg-primary-500"></div>
+                            <div>
+                                <p class="text-gray-500 text-sm" data-i18n="chart.principal">Principal</p>
+                                <p class="text-xl font-bold text-gray-800"><span id="chartPrincipal">$0.00</span></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="w-4 h-4 rounded-full bg-warning-400"></div>
+                            <div>
+                                <p class="text-gray-500 text-sm" data-i18n="chart.interest">Interest</p>
+                                <p class="text-xl font-bold text-gray-800"><span id="chartInterest">$0.00</span></p>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-500 text-sm" data-i18n="chart.total">Total</span>
+                                <span class="text-xl font-bold text-gray-800"><span id="chartTotal">$0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amortization Schedule -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+                <button id="scheduleToggle" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                            <i class="fa fa-table text-indigo-600"></i>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="font-semibold text-gray-800" data-i18n="schedule.title">Amortization Schedule</h3>
+                            <p class="text-sm text-gray-500" data-i18n="schedule.subtitle">View detailed payment breakdown</p>
+                        </div>
+                    </div>
+                    <i class="fa fa-chevron-down text-gray-400 transition-transform" id="scheduleArrow"></i>
+                </button>
+                
+                <!-- Schedule Content -->
+                <div id="scheduleContent" class="hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.payment">Payment #</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.paymentAmount">Payment</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.principal">Principal</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.interest">Interest</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.balance">Remaining Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleBody" class="divide-y divide-gray-100">
+                                <!-- Rows populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 bg-gray-50 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-500" data-i18n="schedule.showing">Showing</span>
+                            <select id="schedulePage" class="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <!-- Options populated by JavaScript -->
+                            </select>
+                        </div>
+                        <button id="exportBtn" class="text-primary-600 font-medium hover:text-primary-700 flex items-center space-x-1 transition-colors">
+                            <i class="fa fa-download"></i>
+                            <span data-i18n="schedule.export">Export CSV</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Chart -->
+            <div id="comparisonSection" class="bg-white rounded-2xl shadow-lg p-6 mb-8 animate-slide-up">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="comparison.title">Loan Comparison</h3>
+                <p class="text-sm text-gray-500 mb-4" data-i18n="comparison.subtitle">Compare different loan scenarios</p>
+                <button id="addComparisonBtn" class="mb-4 px-4 py-2 bg-primary-100 text-primary-700 rounded-lg font-medium text-sm hover:bg-primary-200 transition-colors">
+                    <i class="fa fa-plus mr-2"></i>
+                    <span data-i18n="comparison.add">Add Comparison</span>
+                </button>
+                <canvas id="comparisonChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- History Section -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 animate-slide-up">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800" data-i18n="history.title">Calculation History</h3>
+                    <button id="clearHistoryBtn" class="text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+                <div id="historyList" class="space-y-3">
+                    <!-- History items populated by JavaScript -->
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fa fa-history text-4xl mb-2"></i>
+                        <p data-i18n="history.empty">No calculation history yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-100 py-8 mt-8">
+        <div class="container mx-auto px-4 max-w-6xl">
+            <div class="text-center">
+                <p class="text-gray-600 text-sm leading-relaxed" style="font-size: 14px; line-height: 1.5; margin: 20px 0; color: #666666;">
+                    <span data-i18n="disclaimer">This tool is for reference only and does not constitute financial advice. Please consult with a qualified financial advisor before making any financial decisions.</span>
+                </p>
+                <p class="text-gray-400 text-xs mt-4">
+                    © 2026 International Loan Calculator. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="modal.title">Add Comparison</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="modal.name">Name this scenario</label>
+                    <input type="text" id="comparisonName" placeholder="e.g., 30 Year Fixed" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none input-focus-ring">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="modal.rate">Interest Rate (%)</label>
+                    <input type="number" id="comparisonRate" value="4.5" min="0.1" max="20" step="0.1" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none input-focus-ring">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="modal.term">Term (years)</label>
+                    <input type="number" id="comparisonTerm" value="30" min="1" max="30" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none input-focus-ring">
+                </div>
+            </div>
+            <div class="flex space-x-3 mt-6">
+                <button id="cancelComparisonBtn" class="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+                    <span data-i18n="modal.cancel">Cancel</span>
+                </button>
+                <button id="addComparisonConfirmBtn" class="flex-1 py-2 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors">
+                    <span data-i18n="modal.add">Add</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
