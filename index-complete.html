@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海外贷款计算器 - 国际金融产品</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        info: '#06b6d4',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Microsoft YaHei', 'PingFang SC', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'pulse-once': 'pulseOnce 0.6s ease-in-out',
+                        'shake': 'shake 0.5s ease-in-out',
+                        'bounce-in': 'bounceIn 0.6s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        pulseOnce: {
+                            '0%, 100%': { transform: 'scale(1)' },
+                            '50%': { transform: 'scale(1.02)' },
+                        },
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '25%': { transform: 'translateX(-5px)' },
+                            '75%': { transform: 'translateX(5px)' },
+                        },
+                        bounceIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.8)' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .input-focus-ring {
+                transition: all 0.3s ease;
+            }
+            .input-focus-ring:focus {
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+                border-color: #3b82f6;
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+            }
+            .btn-primary {
+                transition: all 0.2s ease;
+                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            }
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+            }
+            .btn-primary:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+            }
+            .btn-secondary {
+                transition: all 0.2s ease;
+            }
+            .btn-secondary:hover {
+                background-color: #e5e7eb;
+            }
+            .error-border {
+                border-color: #ef4444 !important;
+                animation: shake 0.5s ease-in-out;
+            }
+            .success-border {
+                border-color: #10b981 !important;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+            .loan-card {
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .loan-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+            }
+            .loan-card.selected {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            }
+            .modal-overlay {
+                backdrop-filter: blur(4px);
+            }
+        }
+    </style>
+    
+    <script>
+class I18nManager {
+    constructor() {
+        this.config = { defaultLang: 'zh', storageKey: 'app_language_preference', transitionDelay: 200, supportedLanguages: ['zh', 'en', 'es'], autoDetect: true };
+        this.currentLang = this.config.defaultLang;
+        this.resources = {};
+        this.isInitialized = false;
+        this.listeners = {};
+        this.langNames = { zh: { native: '中文', english: 'Chinese', flag: '🇨🇳' }, en: { native: 'English', english: 'English', flag: '🇺🇸' }, es: { native: 'Español', english: 'Spanish', flag: '🇪🇸' } };
+    }
+    async init() {
+        if (this.isInitialized) return;
+        this.loadResources();
+        this.restoreLanguagePreference();
+        if (this.config.autoDetect && !this.hasSavedPreference()) { this.detectBrowserLanguage(); }
+        this.translatePage();
+        document.documentElement.lang = this.currentLang;
+        this.createLanguageSelector();
+        this.isInitialized = true;
+        this.emit('initialized', { language: this.currentLang });
+        return this;
+    }
+    loadResources() {
+        this.resources = {
+            zh: {
+                'header.title': '国际贷款计算器', 'header.subtitle': '专业金融产品对比平台',
+                'section.loanTypes': '选择贷款产品类型', 'section.selectHint': '根据您的融资需求，从以下专业贷款产品中选择最适合您的方案',
+                'form.currency': '货币类型', 'form.amount': '贷款金额', 'form.amountHint': '请输入符合所选贷款类型的金额范围',
+                'form.term': '贷款期限', 'form.years': '年', 'form.months': '月', 'form.rate': '年利率', 'form.rateHint': '根据您的信用评估自动匹配最优利率',
+                'form.method': '还款方式', 'method.equalPrincipal': '等额本息', 'method.equalPayment': '等额本金', 'method.interestOnly': '先息后本', 'method.balloon': '气球贷',
+                'btn.calculate': '开始计算', 'btn.reset': '重置', 'btn.changeLoan': '更换贷款类型', 'btn.details': '查看详情', 'btn.close': '关闭', 'btn.selectThis': '选择此产品',
+                'result.monthly': '每月还款', 'result.monthlyHint': '固定月供，便于预算规划', 'result.total': '还款总额', 'result.totalHint': '贷款期限内总支付金额',
+                'result.interest': '利息总额', 'result.interestHint': '总利息支出成本', 'result.principal': '贷款本金', 'result.interestRate': '年利率', 'result.term': '贷款期限', 'result.totalPayments': '还款期数',
+                'chart.title': '还款构成分析', 'chart.principal': '贷款本金', 'chart.interest': '利息支出', 'chart.total': '还款总额',
+                'schedule.title': '还款计划表', 'schedule.subtitle': '查看详细每期还款明细', 'schedule.payment': '期数', 'schedule.paymentAmount': '月供', 'schedule.principal': '本金', 'schedule.interest': '利息', 'schedule.balance': '余额', 'schedule.showing': '显示', 'schedule.export': '导出CSV',
+                'comparison.title': '方案对比', 'comparison.subtitle': '对比不同还款方式的优劣', 'tips.title': '申请建议',
+                'modal.amount': '额度范围', 'modal.rate': '利率范围', 'modal.term': '贷款期限', 'modal.targetAudience': '适用人群', 'modal.conditions': '申请条件',
+                'modal.interestCalc': '利率计算方式', 'modal.approval': '审批流程', 'modal.risk': '风险评估', 'modal.documents': '所需材料清单', 'modal.features': '产品特点', 'modal.eligibility': '申请资格',
+                'loan.personalConsumer.name': '个人消费贷款', 'loan.personalConsumer.desc': '满足个人日常消费、大额购物、旅游装修等资金需求',
+                'loan.business.name': '经营性贷款', 'loan.business.desc': '支持企业经营扩张、设备采购、流动资金周转等商业用途',
+                'loan.mortgage.name': '抵押贷款', 'loan.mortgage.desc': '以房产或其他不动产作为抵押的专业贷款产品，额度高利率优',
+                'loan.credit.name': '信用贷款', 'loan.credit.desc': '无需抵押担保，凭个人信用即可申请，快速审批放款',
+                'loan.student.name': '助学贷款', 'loan.student.desc': '支持留学生、海外学子教育费用，利率优惠还款灵活',
+                'loan.auto.name': '汽车贷款', 'loan.auto.desc': '新车二手车均可申请，购车资金无忧',
+                'loan.smallBusiness.name': '小微企业贷', 'loan.smallBusiness.desc': '专为小微企业设计，流程简化放款快',
+                'loan.medical.name': '医疗贷款', 'loan.medical.desc': '支持医疗美容、齿科矫正、手术费用等健康需求',
+                'loan.debtConsolidation.name': '债务整合贷款', 'loan.debtConsolidation.desc': '合并多笔债务，统一还款减轻压力',
+                'error.title': '请修正以下错误：', 'error.amount': '请输入有效的贷款金额', 'error.amountRange': '贷款金额超出所选产品范围',
+                'error.term': '请输入有效的贷款期限', 'error.rate': '请输入有效的年利率', 'error.rateRange': '年利率超出允许范围',
+                'disclaimer': '本工具仅供参考，不构成建议。在做出任何财务决策之前，请咨询合格的金融顾问。贷款产品信息可能因地区政策和金融机构而异，请以实际审批结果为准。'
+            },
+            en: {
+                'header.title': 'International Loan Calculator', 'header.subtitle': 'Professional Financial Products Platform',
+                'section.loanTypes': 'Select Loan Product Type', 'section.selectHint': 'Choose the most suitable loan product for your financing needs',
+                'form.currency': 'Currency', 'form.amount': 'Loan Amount', 'form.amountHint': 'Enter an amount within the selected product range',
+                'form.term': 'Loan Term', 'form.years': 'Years', 'form.months': 'Months', 'form.rate': 'Annual Interest Rate', 'form.rateHint': 'Automatically match optimal rate based on your credit',
+                'form.method': 'Repayment Method', 'method.equalPrincipal': 'Equal Principal & Interest', 'method.equalPayment': 'Equal Principal', 'method.interestOnly': 'Interest Only', 'method.balloon': 'Balloon Loan',
+                'btn.calculate': 'Calculate', 'btn.reset': 'Reset', 'btn.changeLoan': 'Change Loan Type', 'btn.details': 'View Details', 'btn.close': 'Close', 'btn.selectThis': 'Select This Product',
+                'result.monthly': 'Monthly Payment', 'result.monthlyHint': 'Fixed monthly payment for easy budgeting', 'result.total': 'Total Payment', 'result.totalHint': 'Total payment over the loan term',
+                'result.interest': 'Total Interest', 'result.interestHint': 'Total interest cost', 'result.principal': 'Principal', 'result.interestRate': 'Annual Rate', 'result.term': 'Loan Term', 'result.totalPayments': 'Total Payments',
+                'chart.title': 'Payment Breakdown', 'chart.principal': 'Principal', 'chart.interest': 'Interest', 'chart.total': 'Total',
+                'schedule.title': 'Amortization Schedule', 'schedule.subtitle': 'View detailed payment breakdown', 'schedule.payment': 'Period', 'schedule.paymentAmount': 'Payment', 'schedule.principal': 'Principal', 'schedule.interest': 'Interest', 'schedule.balance': 'Balance', 'schedule.showing': 'Showing', 'schedule.export': 'Export CSV',
+                'comparison.title': 'Plan Comparison', 'comparison.subtitle': 'Compare advantages of different repayment methods', 'tips.title': 'Application Tips',
+                'modal.amount': 'Amount Range', 'modal.rate': 'Rate Range', 'modal.term': 'Loan Term', 'modal.targetAudience': 'Target Audience', 'modal.conditions': 'Application Conditions',
+                'modal.interestCalc': 'Interest Calculation', 'modal.approval': 'Approval Process', 'modal.risk': 'Risk Assessment', 'modal.documents': 'Required Documents', 'modal.features': 'Product Features', 'modal.eligibility': 'Eligibility',
+                'loan.personalConsumer.name': 'Personal Consumer Loan', 'loan.personalConsumer.desc': 'Meet personal daily consumption, large purchases, travel and renovation funding needs',
+                'loan.business.name': 'Business Loan', 'loan.business.desc': 'Support business expansion, equipment procurement, working capital and other commercial purposes',
+                'loan.mortgage.name': 'Mortgage Loan', 'loan.mortgage.desc': 'Professional loan products secured by real estate or other properties, high amount with favorable rates',
+                'loan.credit.name': 'Credit Loan', 'loan.credit.desc': 'No collateral required, apply with personal credit, fast approval and disbursement',
+                'loan.student.name': 'Student Loan', 'loan.student.desc': 'Support international students education expenses, favorable rates with flexible repayment',
+                'loan.auto.name': 'Auto Loan', 'loan.auto.desc': 'New or used cars available, financing for car purchases',
+                'loan.smallBusiness.name': 'Small Business Loan', 'loan.smallBusiness.desc': 'Designed for small and micro enterprises, simplified process with fast disbursement',
+                'loan.medical.name': 'Medical Loan', 'loan.medical.desc': 'Support medical cosmetology, dental correction, surgery expenses and other health needs',
+                'loan.debtConsolidation.name': 'Debt Consolidation Loan', 'loan.debtConsolidation.desc': 'Consolidate multiple debts into one, unified repayment reduces pressure',
+                'error.title': 'Please fix the following errors:', 'error.amount': 'Please enter a valid loan amount', 'error.amountRange': 'Loan amount exceeds product range',
+                'error.term': 'Please enter a valid loan term', 'error.rate': 'Please enter a valid annual interest rate', 'error.rateRange': 'Interest rate exceeds allowed range',
+                'disclaimer': 'This tool is for reference only and does not constitute financial advice. Please consult a qualified financial advisor before making any financial decisions.'
+            },
+            es: {
+                'header.title': 'Calculadora de Préstamos Internacional', 'header.subtitle': 'Plataforma de Productos Financieros Profesionales',
+                'section.loanTypes': 'Seleccionar Tipo de Préstamo', 'section.selectHint': 'Elige el producto de préstamo más adecuado para tus necesidades de financiamiento',
+                'form.currency': 'Moneda', 'form.amount': 'Monto del Préstamo', 'form.amountHint': 'Ingresa un monto dentro del rango del producto seleccionado',
+                'form.term': 'Plazo del Préstamo', 'form.years': 'Años', 'form.months': 'Meses', 'form.rate': 'Tasa de Interés Anual', 'form.rateHint': 'Tasa óptima según tu crédito automáticamente',
+                'form.method': 'Método de Pago', 'method.equalPrincipal': 'Igual Capital e Interés', 'method.equalPayment': 'Igual Capital', 'method.interestOnly': 'Solo Interés', 'method.balloon': 'Préstamo Globo',
+                'btn.calculate': 'Calcular', 'btn.reset': 'Reiniciar', 'btn.changeLoan': 'Cambiar Tipo de Préstamo', 'btn.details': 'Ver Detalles', 'btn.close': 'Cerrar', 'btn.selectThis': 'Seleccionar Este Producto',
+                'result.monthly': 'Pago Mensual', 'result.monthlyHint': 'Pago mensual fijo para fácil presupuesto', 'result.total': 'Pago Total', 'result.totalHint': 'Pago total durante el plazo del préstamo',
+                'result.interest': 'Interés Total', 'result.interestHint': 'Costo total de intereses', 'result.principal': 'Capital', 'result.interestRate': 'Tasa Anual', 'result.term': 'Plazo', 'result.totalPayments': 'Total de Pagos',
+                'chart.title': 'Desglose de Pago', 'chart.principal': 'Capital', 'chart.interest': 'Interés', 'chart.total': 'Total',
+                'schedule.title': 'Calendario de Amortización', 'schedule.subtitle': 'Ver desglose detallado de pagos', 'schedule.payment': 'Período', 'schedule.paymentAmount': 'Pago', 'schedule.principal': 'Capital', 'schedule.interest': 'Interés', 'schedule.balance': 'Saldo', 'schedule.showing': 'Mostrando', 'schedule.export': 'Exportar CSV',
+                'comparison.title': 'Comparación de Planes', 'comparison.subtitle': 'Comparar ventajas de diferentes métodos de pago', 'tips.title': 'Consejos de Aplicación',
+                'modal.amount': 'Rango de Monto', 'modal.rate': 'Rango de Tasa', 'modal.term': 'Plazo', 'modal.targetAudience': 'Público Objetivo', 'modal.conditions': 'Condiciones de Aplicación',
+                'modal.interestCalc': 'Cálculo de Interés', 'modal.approval': 'Proceso de Aprobación', 'modal.risk': 'Evaluación de Riesgo', 'modal.documents': 'Documentos Requeridos', 'modal.features': 'Características del Producto', 'modal.eligibility': 'Elegibilidad',
+                'loan.personalConsumer.name': 'Préstamo Personal de Consumo', 'loan.personalConsumer.desc': 'Satisfacer necesidades de consumo personal, compras grandes, viajes y renovaciones',
+                'loan.business.name': 'Préstamo Comercial', 'loan.business.desc': 'Apoyar la expansión empresarial, compra de equipos, capital de trabajo y otros fines comerciales',
+                'loan.mortgage.name': 'Préstamo Hipotecario', 'loan.mortgage.desc': 'Productos de préstamo profesional garantizados por propiedad inmobiliaria',
+                'loan.credit.name': 'Préstamo de Crédito', 'loan.credit.desc': 'Sin garantía requerida, solicita con crédito personal, aprobación rápida',
+                'loan.student.name': 'Préstamo Estudiantil', 'loan.student.desc': 'Apoyar gastos educativos de estudiantes internacionales',
+                'loan.auto.name': 'Préstamo de Auto', 'loan.auto.desc': 'Autos nuevos o usados disponibles, financiamiento para compras de vehículos',
+                'loan.smallBusiness.name': 'Préstamo para Pequeños Negocios', 'loan.smallBusiness.desc': 'Diseñado para pequeñas y micro empresas, proceso simplificado',
+                'loan.medical.name': 'Préstamo Médico', 'loan.medical.desc': 'Apoyar belleza médica, ortodoncia dental, gastos de cirugía y otras necesidades de salud',
+                'loan.debtConsolidation.name': 'Consolidación de Deudas', 'loan.debtConsolidation.desc': 'Consolidar múltiples deudas en una, pago unificado reduce la presión',
+                'error.title': 'Por favor corrige los siguientes errores:', 'error.amount': 'Ingresa un monto de préstamo válido', 'error.amountRange': 'Monto excede el rango del producto',
+                'error.term': 'Ingresa un plazo de préstamo válido', 'error.rate': 'Ingresa una tasa de interés anual válida', 'error.rateRange': 'Tasa de interés excede el rango permitido',
+                'disclaimer': 'Esta herramienta es solo para referencia y no constituye asesoramiento financiero. Por favor consulta a un asesor financiero calificado antes de tomar decisiones financieras.'
+            }
+        };
+    }
+    createLanguageSelector() {
+        const container = document.getElementById('languageSelector');
+        if (!container) return;
+        container.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'language-selector relative inline-block';
+        const currentLang = this.langNames[this.currentLang];
+        const button = document.createElement('button');
+        button.id = 'langToggleBtn';
+        button.className = 'flex items-center space-x-2 px-3 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all shadow-sm';
+        button.innerHTML = `<span class="text-base">${currentLang.flag}</span><span class="hidden sm:inline">${currentLang.native}</span><i class="fa fa-chevron-down text-xs ml-1"></i>`;
+        const dropdown = document.createElement('div');
+        dropdown.id = 'langDropdown';
+        dropdown.className = 'absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 opacity-0 invisible transform scale-95 transition-all duration-200 z-50';
+        this.config.supportedLanguages.forEach(lang => {
+            const langInfo = this.langNames[lang];
+            const option = document.createElement('button');
+            option.className = `w-full flex items-center space-x-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${lang === this.currentLang ? 'bg-primary-50 text-primary-700' : 'text-gray-700'}`;
+            option.dataset.lang = lang;
+            option.innerHTML = `<span class="text-lg">${langInfo.flag}</span><span class="flex-1">${langInfo.native}</span>${lang === this.currentLang ? '<i class="fa fa-check text-primary-500"></i>' : ''}`;
+            option.addEventListener('click', (e) => { e.stopPropagation(); this.switchLanguage(lang); this.closeDropdown(); });
+            dropdown.appendChild(option);
+        });
+        wrapper.appendChild(button);
+        wrapper.appendChild(dropdown);
+        container.appendChild(wrapper);
+        button.addEventListener('click', (e) => { e.stopPropagation(); this.toggleDropdown(); });
+        document.addEventListener('click', () => { this.closeDropdown(); });
+    }
+    toggleDropdown() {
+        const dropdown = document.getElementById('langDropdown');
+        if (!dropdown) return;
+        if (!dropdown.classList.contains('invisible')) { this.closeDropdown(); }
+        else { dropdown.classList.remove('invisible', 'opacity-0', 'scale-95'); dropdown.classList.add('opacity-100', 'scale-100'); }
+    }
+    closeDropdown() {
+        const dropdown = document.getElementById('langDropdown');
+        if (!dropdown) return;
+        dropdown.classList.add('invisible', 'opacity-0', 'scale-95');
+        dropdown.classList.remove('opacity-100', 'scale-100');
+    }
+    async switchLanguage(lang) {
+        if (lang === this.currentLang) return;
+        if (!this.config.supportedLanguages.includes(lang)) return;
+        this.currentLang = lang;
+        this.saveLanguagePreference();
+        await this.applyTransition();
+        this.translatePage();
+        this.updateSelectorUI();
+        document.documentElement.lang = lang;
+        this.emit('languageChanged', { language: lang });
+    }
+    async applyTransition() {
+        const elements = document.querySelectorAll('[data-i18n]');
+        elements.forEach(el => { el.style.transition = `opacity ${this.config.transitionDelay}ms ease`; el.style.opacity = '0.3'; });
+        await new Promise(resolve => setTimeout(resolve, this.config.transitionDelay));
+        elements.forEach(el => { el.style.opacity = '1'; });
+    }
+    translatePage() {
+        const elements = document.querySelectorAll('[data-i18n]');
+        elements.forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            const translation = this.t(key);
+            if (translation) { element.textContent = translation; }
+        });
+    }
+    updateSelectorUI() {
+        const button = document.getElementById('langToggleBtn');
+        const dropdown = document.getElementById('langDropdown');
+        if (button) {
+            const langInfo = this.langNames[this.currentLang];
+            button.innerHTML = `<span class="text-base">${langInfo.flag}</span><span class="hidden sm:inline">${langInfo.native}</span><i class="fa fa-chevron-down text-xs ml-1"></i>`;
+        }
+        if (dropdown) {
+            dropdown.querySelectorAll('button[data-lang]').forEach(btn => {
+                const lang = btn.dataset.lang;
+                const isActive = lang === this.currentLang;
+                btn.className = `w-full flex items-center space-x-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-700'}`;
+                if (isActive) { btn.innerHTML = `<span class="text-lg">${this.langNames[lang].flag}</span><span class="flex-1">${this.langNames[lang].native}</span><i class="fa fa-check text-primary-500"></i>`; }
+                else { btn.innerHTML = `<span class="text-lg">${this.langNames[lang].flag}</span><span class="flex-1">${this.langNames[lang].native}</span>`; }
+            });
+        }
+    }
+    t(key) {
+        if (this.resources[this.currentLang] && this.resources[this.currentLang][key]) { return this.resources[this.currentLang][key]; }
+        if (this.resources[this.config.defaultLang] && this.resources[this.config.defaultLang][key]) { return this.resources[this.config.defaultLang][key]; }
+        return key;
+    }
+    getCurrentLanguage() { return this.currentLang; }
+    saveLanguagePreference() { try { localStorage.setItem(this.config.storageKey, this.currentLang); } catch (e) {} }
+    restoreLanguagePreference() { try { const saved = localStorage.getItem(this.config.storageKey); if (saved && this.config.supportedLanguages.includes(saved)) { this.currentLang = saved; } } catch (e) {} }
+    hasSavedPreference() { try { return localStorage.getItem(this.config.storageKey) !== null; } catch (e) { return false; } }
+    detectBrowserLanguage() {
+        const browserLang = navigator.language || navigator.userLanguage;
+        const langCode = browserLang.split('-')[0].toLowerCase();
+        if (this.config.supportedLanguages.includes(langCode)) { this.currentLang = langCode; }
+    }
+    on(event, callback) { if (!this.listeners[event]) { this.listeners[event] = []; } this.listeners[event].push(callback); }
+    off(event, callback) { if (!this.listeners[event]) return; this.listeners[event] = this.listeners[event].filter(cb => cb !== callback); }
+    emit(event, data) { if (!this.listeners[event]) return; this.listeners[event].forEach(callback => { try { callback(data); } catch (e) {} }); }
+}
+const i18n = new I18nManager();
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => i18n.init()); }
+else { i18n.init(); }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fa fa-calculator text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800" data-i18n="header.title">国际贷款计算器</h1>
+                        <p class="text-xs text-gray-500" data-i18n="header.subtitle">专业金融产品对比平台</p>
+                    </div>
+                </div>
+                <div id="languageSelector" class="language-selector-wrapper"></div>
+                <button onclick="testModal()" class="mt-2 px-4 py-1 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors">
+                    <i class="fa fa-bug mr-1"></i>测试模态框
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-7xl">
+        <section class="mb-8 animate-fade-in">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">
+                <i class="fa fa-list-ul text-primary-500 mr-2"></i>
+                <span data-i18n="section.loanTypes">选择贷款产品类型</span>
+            </h2>
+            <p class="text-gray-600 text-center mb-8 max-w-2xl mx-auto" data-i18n="section.selectHint">
+                根据您的融资需求，从以下专业贷款产品中选择最适合您的方案
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="loanTypeCards">
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="personal-consumer">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-shopping-cart text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.personalConsumer.name">个人消费贷款</h3><span class="text-xs text-gray-500">Personal Consumer Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.personalConsumer.desc">满足个人日常消费、大额购物、旅游装修等资金需求</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$5,000 - $100,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">4.5% - 15.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">12 - 60个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('personal-consumer')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="business">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-briefcase text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.business.name">经营性贷款</h3><span class="text-xs text-gray-500">Business Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.business.desc">支持企业经营扩张、设备采购、流动资金周转等商业用途</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$50,000 - $5,000,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">3.5% - 12.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">12 - 120个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('business')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="mortgage">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-home text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.mortgage.name">抵押贷款</h3><span class="text-xs text-gray-500">Mortgage Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.mortgage.desc">以房产或其他不动产作为抵押的专业贷款产品，额度高利率优</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$100,000 - $10,000,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">2.5% - 7.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">60 - 360个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('mortgage')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="credit">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-credit-card text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.credit.name">信用贷款</h3><span class="text-xs text-gray-500">Credit Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.credit.desc">无需抵押担保，凭个人信用即可申请，快速审批放款</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$3,000 - $500,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">6.99% - 24.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">6 - 48个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('credit')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="student">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-violet-400 to-purple-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-graduation-cap text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.student.name">助学贷款</h3><span class="text-xs text-gray-500">Student Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.student.desc">支持留学生、海外学子教育费用，利率优惠还款灵活</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$10,000 - $250,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">2.0% - 6.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">60 - 240个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('student')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="auto">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-cyan-400 to-sky-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-car text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.auto.name">汽车贷款</h3><span class="text-xs text-gray-500">Auto Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.auto.desc">新车二手车均可申请，购车资金无忧</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$10,000 - $150,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">3.9% - 14.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">12 - 84个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('auto')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="small-business">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-lime-400 to-green-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-store text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.smallBusiness.name">小微企业贷</h3><span class="text-xs text-gray-500">Small Business Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.smallBusiness.desc">专为小微企业设计，流程简化放款快</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$10,000 - $1,000,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">5.99% - 18.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">12 - 60个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('small-business')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="medical">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-red-400 to-rose-500 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-heartbeat text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.medical.name">医疗贷款</h3><span class="text-xs text-gray-500">Medical Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.medical.desc">支持医疗美容、齿科矫正、手术费用等健康需求</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$5,000 - $200,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">4.99% - 16.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">12 - 60个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('medical')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+                <div class="loan-card bg-white rounded-2xl shadow-lg p-6 border-2 border-transparent" data-loan-type="debt-consolidation">
+                    <div class="flex items-center mb-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-slate-400 to-gray-600 rounded-2xl flex items-center justify-center mr-4"><i class="fa fa-balance-scale text-white text-2xl"></i></div>
+                        <div><h3 class="text-lg font-bold text-gray-800" data-i18n="loan.debtConsolidation.name">债务整合贷款</h3><span class="text-xs text-gray-500">Debt Consolidation Loan</span></div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-4" data-i18n="loan.debtConsolidation.desc">合并多笔债务，统一还款减轻压力</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">额度范围：</span><span class="font-medium text-gray-800">$10,000 - $500,000</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">利率范围：</span><span class="font-medium text-primary-600">5.49% - 19.99%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">期限：</span><span class="font-medium text-gray-800">24 - 120个月</span></div>
+                    </div>
+                    <button onclick="showLoanDetails('debt-consolidation')" class="mt-4 w-full py-2 bg-primary-100 text-primary-700 rounded-xl font-medium hover:bg-primary-200 transition-colors"><i class="fa fa-info-circle mr-2"></i><span data-i18n="btn.details">查看详情</span></button>
+                </div>
+            </div>
+        </section>
+
+        <section id="calculatorSection" class="hidden mb-8">
+            <div class="bg-gradient-to-r from-primary-600 to-indigo-600 rounded-2xl p-6 mb-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center" id="selectedLoanIcon"><i class="fa fa-calculator text-white text-3xl"></i></div>
+                        <div><h2 class="text-2xl font-bold text-white" id="selectedLoanName">贷款计算器</h2><p class="text-white/80" id="selectedLoanDesc">计算您的贷款还款方案</p></div>
+                    </div>
+                    <button onclick="changeLoanType()" class="px-4 py-2 bg-white/20 text-white rounded-xl font-medium hover:bg-white/30 transition-colors"><i class="fa fa-exchange mr-2"></i><span data-i18n="btn.changeLoan">更换贷款类型</span></button>
+                </div>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden animate-slide-up">
+                <div class="p-6 md:p-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.currency">货币类型</label>
+                            <div class="relative mb-4">
+                                <select id="currency" class="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 text-gray-800 font-medium focus:outline-none input-focus-ring">
+                                    <option value="USD">USD ($) - 美元</option><option value="EUR">EUR (€) - 欧元</option><option value="GBP">GBP (£) - 英镑</option><option value="JPY">JPY (¥) - 日元</option><option value="AUD">AUD ($) - 澳元</option><option value="CAD">CAD ($) - 加元</option><option value="CHF">CHF (Fr) - 瑞士法郎</option><option value="CNY">CNY (¥) - 人民币</option><option value="SGD">SGD ($) - 新加坡元</option>
+                                </select>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><i class="fa fa-chevron-down text-gray-400"></i></div>
+                            </div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.amount">贷款金额</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-lg" id="currencySymbol">$</span>
+                                <input type="text" id="loanAmount" placeholder="100,000" class="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-gray-800 font-medium text-lg focus:outline-none input-focus-ring">
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1" id="amountRangeHint">请输入符合所选贷款类型的金额范围</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.term">贷款期限</label>
+                            <div class="relative">
+                                <div class="flex items-center space-x-4">
+                                    <input type="number" id="loanTermInput" value="30" min="1" max="30" class="w-24 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium text-center focus:outline-none input-focus-ring">
+                                    <div class="flex-1">
+                                        <input type="range" id="loanTermSlider" min="1" max="30" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600">
+                                        <div class="flex justify-between text-xs text-gray-400 mt-1"><span>1 <span data-i18n="form.years">年</span></span><span id="maxTermDisplay">30 <span data-i18n="form.years">年</span></span></div>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2 mt-4">
+                                    <button id="termYears" class="term-btn flex-1 py-2 bg-primary-100 text-primary-700 rounded-lg font-medium text-sm transition-all hover:bg-primary-200 active"><span data-i18n="form.years">年</span></button>
+                                    <button id="termMonths" class="term-btn flex-1 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium text-sm transition-all hover:bg-gray-200"><span data-i18n="form.months">月</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.rate">年利率</label>
+                            <div class="relative">
+                                <input type="text" id="interestRate" value="4.50" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 font-medium text-lg focus:outline-none input-focus-ring">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-lg">%</span>
+                            </div>
+                            <div class="mt-4">
+                                <input type="range" id="interestRateSlider" min="0.1" max="20" step="0.1" value="4.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600">
+                                <div class="flex justify-between text-xs text-gray-400 mt-1"><span id="minRateDisplay">0.1%</span><span id="maxRateDisplay">20%</span></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2" data-i18n="form.rateHint">根据您的信用评估自动匹配最优利率</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="form.method">还款方式</label>
+                            <div class="space-y-3">
+                                <div class="flex space-x-2">
+                                    <button id="method-equal-principal" class="method-btn flex-1 py-3 bg-primary-100 text-primary-700 rounded-xl font-medium text-sm transition-all hover:bg-primary-200 active flex items-center justify-center"><i class="fa fa-calculator mr-2"></i><span data-i18n="method.equalPrincipal">等额本息</span></button>
+                                    <button id="method-equal-payment" class="method-btn flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium text-sm transition-all hover:bg-gray-200 flex items-center justify-center"><i class="fa fa-money mr-2"></i><span data-i18n="method.equalPayment">等额本金</span></button>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button id="method-interest-only" class="method-btn flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium text-sm transition-all hover:bg-gray-200 flex items-center justify-center"><i class="fa fa-percent mr-2"></i><span data-i18n="method.interestOnly">先息后本</span></button>
+                                    <button id="method-balloon" class="method-btn flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium text-sm transition-all hover:bg-gray-200 flex items-center justify-center"><i class="fa fa-flag mr-2"></i><span data-i18n="method.balloon">气球贷</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="errorMessages" class="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl hidden">
+                        <div class="flex items-center space-x-2 mb-2"><i class="fa fa-exclamation-circle text-red-500"></i><span class="font-medium text-red-700" data-i18n="error.title">请修正以下错误：</span></div>
+                        <ul class="text-sm text-red-600 space-y-1" id="errorList"></ul>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4 mt-6">
+                        <button id="calculateBtn" class="btn-primary flex-1 bg-gradient-to-r from-primary-600 to-indigo-600 text-white font-semibold py-4 rounded-xl flex items-center justify-center space-x-2"><i class="fa fa-calculator"></i><span data-i18n="btn.calculate">开始计算</span></button>
+                        <button id="resetBtn" class="btn-secondary px-6 py-4 bg-gray-100 text-gray-700 font-semibold rounded-xl flex items-center justify-center space-x-2"><i class="fa fa-refresh"></i><span data-i18n="btn.reset">重置</span></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="resultsSection" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-slide-up">
+                <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-primary-500">
+                    <div class="flex items-center justify-between mb-4"><span class="text-gray-500 text-sm" data-i18n="result.monthly">每月还款</span><div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center"><i class="fa fa-calendar text-primary-600"></i></div></div>
+                    <div class="flex items-baseline space-x-1"><span class="text-gray-400 text-lg" id="monthlyCurrency">$</span><span class="text-4xl font-bold text-gray-800" id="monthlyPayment">0.00</span></div>
+                    <p class="text-xs text-gray-400 mt-2" data-i18n="result.monthlyHint">固定月供，便于预算规划</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-success">
+                    <div class="flex items-center justify-between mb-4"><span class="text-gray-500 text-sm" data-i18n="result.total">还款总额</span><div class="w-10 h-10 bg-success/10 rounded-xl flex items-center justify-center"><i class="fa fa-money text-success"></i></div></div>
+                    <div class="flex items-baseline space-x-1"><span class="text-gray-400 text-lg" id="totalCurrency">$</span><span class="text-4xl font-bold text-gray-800" id="totalPayment">0.00</span></div>
+                    <p class="text-xs text-gray-400 mt-2" data-i18n="result.totalHint">贷款期限内总支付金额</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-warning">
+                    <div class="flex items-center justify-between mb-4"><span class="text-gray-500 text-sm" data-i18n="result.interest">利息总额</span><div class="w-10 h-10 bg-warning/10 rounded-xl flex items-center justify-center"><i class="fa fa-chart-line text-warning"></i></div></div>
+                    <div class="flex items-baseline space-x-1"><span class="text-gray-400 text-lg" id="interestCurrency">$</span><span class="text-4xl font-bold text-gray-800" id="totalInterest">0.00</span></div>
+                    <p class="text-xs text-gray-400 mt-2" data-i18n="result.interestHint">总利息支出成本</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="result.principal">贷款本金</p><p class="text-2xl font-bold text-blue-600"><span id="resultPrincipal">$0</span></p></div>
+                <div class="bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="result.interestRate">年利率</p><p class="text-2xl font-bold text-green-600"><span id="resultRate">0%</span></p></div>
+                <div class="bg-gradient-to-br from-purple-50 to-violet-100 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="result.term">贷款期限</p><p class="text-2xl font-bold text-purple-600"><span id="resultTerm">0</span></p></div>
+                <div class="bg-gradient-to-br from-orange-50 to-amber-100 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="result.totalPayments">还款期数</p><p class="text-2xl font-bold text-orange-600"><span id="resultPayments">0</span></p></div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 animate-slide-up">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="chart.title">还款构成分析</h3>
+                <div class="flex flex-col lg:flex-row items-center gap-8">
+                    <div class="w-full lg:w-1/3"><canvas id="pieChart" width="300" height="300"></canvas></div>
+                    <div class="w-full lg:w-2/3 space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
+                            <div class="flex items-center space-x-4"><div class="w-4 h-4 rounded-full bg-primary-500"></div><div><p class="text-gray-500 text-sm" data-i18n="chart.principal">贷款本金</p><p class="text-xl font-bold text-gray-800"><span id="chartPrincipal">$0.00</span></p></div></div>
+                            <span class="text-sm text-gray-500"><span id="principalPercent">0</span>%</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
+                            <div class="flex items-center space-x-4"><div class="w-4 h-4 rounded-full bg-warning-400"></div><div><p class="text-gray-500 text-sm" data-i18n="chart.interest">利息支出</p><p class="text-xl font-bold text-gray-800"><span id="chartInterest">$0.00</span></p></div></div>
+                            <span class="text-sm text-gray-500"><span id="interestPercent">0</span>%</span>
+                        </div>
+                        <div class="pt-4 border-t border-gray-200 flex justify-between items-center"><span class="text-gray-500" data-i18n="chart.total">还款总额</span><span class="text-2xl font-bold text-gray-800"><span id="chartTotal">$0.00</span></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+                <button id="scheduleToggle" class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center space-x-3"><div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center"><i class="fa fa-table text-indigo-600"></i></div><div class="text-left"><h3 class="font-semibold text-gray-800" data-i18n="schedule.title">还款计划表</h3><p class="text-sm text-gray-500" data-i18n="schedule.subtitle">查看详细每期还款明细</p></div></div>
+                    <i class="fa fa-chevron-down text-gray-400 transition-transform" id="scheduleArrow"></i>
+                </button>
+                <div id="scheduleContent" class="hidden">
+                    <div class="overflow-x-auto max-h-96 scrollbar-thin">
+                        <table class="w-full">
+                            <thead class="sticky top-0 bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.payment">期数</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.paymentAmount">月供</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.principal">本金</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.interest">利息</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider" data-i18n="schedule.balance">余额</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleBody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 bg-gray-50 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center space-x-2"><span class="text-sm text-gray-500" data-i18n="schedule.showing">显示</span><select id="schedulePage" class="bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"></select></div>
+                        <button id="exportBtn" class="text-primary-600 font-medium hover:text-primary-700 flex items-center space-x-1 transition-colors"><i class="fa fa-download"></i><span data-i18n="schedule.export">导出CSV</span></button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 animate-slide-up">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="comparison.title">方案对比</h3>
+                <p class="text-sm text-gray-500 mb-4" data-i18n="comparison.subtitle">对比不同还款方式的优劣</p>
+                <canvas id="comparisonChart" width="600" height="300"></canvas>
+            </div>
+            <div class="bg-gradient-to-r from-primary-50 to-indigo-50 rounded-2xl p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4"><i class="fa fa-lightbulb-o text-warning mr-2"></i><span data-i18n="tips.title">申请建议</span></h3>
+                <div id="applicationTips" class="space-y-3 text-gray-700"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="loanDetailsModal" class="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden animate-bounce-in">
+            <div class="bg-gradient-to-r from-primary-600 to-indigo-600 px-6 py-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4"><div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center" id="modalLoanIcon"><i class="fa fa-info text-white text-2xl"></i></div><div><h3 class="text-2xl font-bold text-white" id="modalLoanTitle">贷款产品详情</h3><p class="text-white/80" id="modalLoanSubtitle">产品信息概览</p></div></div>
+                    <button onclick="closeModal()" class="text-white hover:text-gray-200 transition-colors"><i class="fa fa-times text-2xl"></i></button>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)] scrollbar-thin">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="modal.amount">额度范围</p><p class="text-xl font-bold text-blue-600" id="modalAmount">$5,000 - $100,000</p></div>
+                    <div class="bg-green-50 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="modal.rate">利率范围</p><p class="text-xl font-bold text-green-600" id="modalRate">4.5% - 15.99%</p></div>
+                    <div class="bg-purple-50 rounded-xl p-4 text-center"><p class="text-sm text-gray-600 mb-1" data-i18n="modal.term">贷款期限</p><p class="text-xl font-bold text-purple-600" id="modalTerm">12 - 60个月</p></div>
+                </div>
+                <div class="space-y-6">
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-users text-primary-500 mr-2"></i><span data-i18n="modal.targetAudience">适用人群</span></h4><ul id="modalTargetAudience" class="list-disc list-inside text-gray-600 space-y-1"></ul></div>
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-check-circle text-success mr-2"></i><span data-i18n="modal.conditions">申请条件</span></h4><ul id="modalConditions" class="list-disc list-inside text-gray-600 space-y-1"></ul></div>
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-star text-yellow-500 mr-2"></i><span data-i18n="modal.features">产品特点</span></h4><div id="modalFeatures" class="grid grid-cols-2 gap-3"></div></div>
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-check-circle text-success mr-2"></i><span data-i18n="modal.eligibility">申请资格</span></h4><div id="modalEligibility" class="bg-yellow-50 rounded-xl p-4 border-l-4 border-yellow-400"></div></div>
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-calculator text-warning mr-2"></i><span data-i18n="modal.interestCalc">利率计算方式</span></h4><div id="modalInterestCalc" class="bg-gray-50 rounded-xl p-4 text-gray-700"></div></div>
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-tasks text-info mr-2"></i><span data-i18n="modal.approval">审批流程</span></h4><div id="modalApproval" class="grid grid-cols-4 gap-4"></div></div>
+                    <div class="border-b border-gray-100 pb-4"><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-shield text-danger mr-2"></i><span data-i18n="modal.risk">风险评估标准</span></h4><div id="modalRisk" class="grid grid-cols-2 gap-4"></div></div>
+                    <div><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center"><i class="fa fa-file-text text-purple-500 mr-2"></i><span data-i18n="modal.documents">所需材料清单</span></h4><div id="modalDocuments" class="grid grid-cols-2 gap-4"></div></div>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-between items-center">
+                <button onclick="closeModal()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-colors"><span data-i18n="btn.close">关闭</span></button>
+                <button id="selectLoanBtn" class="px-6 py-2 bg-gradient-to-r from-primary-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity"><i class="fa fa-check mr-2"></i><span data-i18n="btn.selectThis">选择此产品</span></button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-white border-t border-gray-100 py-8 mt-8">
+        <div class="container mx-auto px-4 max-w-7xl">
+            <div class="text-center">
+                <p class="text-gray-600 text-sm leading-relaxed" style="font-size: 14px; line-height: 1.5; margin: 20px 0; color: #666666;"><span data-i18n="disclaimer">本工具仅供参考，不构成建议。在做出任何财务决策之前，请咨询合格的金融顾问。贷款产品信息可能因地区政策和金融机构而异，请以实际审批结果为准。</span></p>
+                <p class="text-gray-400 text-xs mt-4">© 2026 国际贷款计算器 | 专业的国际金融产品对比平台</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+const currencySymbols = { 'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'AUD': 'A$', 'CAD': 'C$', 'CHF': 'Fr', 'CNY': '¥', 'SGD': 'S$' };
+const loanProducts = {
+    'personal-consumer': { name: { zh: '个人消费贷款', en: 'Personal Consumer Loan', es: 'Préstamo Personal de Consumo' }, icon: 'fa-shopping-cart', amountRange: [5000, 100000], rateRange: [4.5, 15.99], termRange: [12, 60], defaultRate: 8.99, description: { zh: '满足个人日常消费、大额购物、旅游装修等资金需求', en: 'Meet personal daily consumption', es: 'Satisfacer necesidades' }, targetAudience: { zh: ['有稳定收入的工薪阶层', '需要大额消费的年轻人群'], en: ['Salary class', 'Young people'], es: ['Clase asalariada'] }, conditions: { zh: ['年龄22-55周岁', '有稳定工作'], en: ['Age 22-55', 'Stable job'], es: ['Edad 22-55'] }, interestCalc: { zh: '等额本息还款，月供固定', en: 'Equal principal and interest', es: 'Capital e intereses iguales' }, approvalSteps: { zh: [{ step: 1, name: '在线申请', desc: '填写基本信息' }, { step: 2, name: '资料审核', desc: '上传证明材料' }, { step: 3, name: '信用评估', desc: '系统自动审批' }, { step: 4, name: '快速放款', desc: '最快当天到账' }], en: [{ step: 1, name: 'Online Application', desc: 'Fill in basic info' }, { step: 2, name: 'Document Review', desc: 'Upload materials' }, { step: 3, name: 'Credit Assessment', desc: 'Auto approval' }, { step: 4, name: 'Fast Funding', desc: 'Same day' }], es: [{ step: 1, name: 'Solicitud Online', desc: 'Complete info' }, { step: 2, name: 'Revisión', desc: 'Subir materiales' }, { step: 3, name: 'Evaluación', desc: 'Auto approval' }, { step: 4, name: 'Financiamiento', desc: 'Mismo día' }] }, riskFactors: { low: { zh: ['收入稳定', '信用良好'], en: ['Stable income', 'Good credit'], es: ['Ingresos estables'] }, high: { zh: ['收入不稳定', '有逾期'], en: ['Unstable income', 'Late payments'], es: ['Ingresos inestables'] } }, documents: { zh: ['身份证', '收入证明'], en: ['ID', 'Income proof'], es: ['Identificación'] }, tips: { zh: ['建议等额本息', '短期利息少'], en: ['Suggest equal principal', 'Short term less interest'], es: ['Sugerir capital igual'] }, features: { zh: ['申请便捷', '放款快速'], en: ['Easy application', 'Fast funding'], es: ['Solicitud fácil'] }, eligibility: { zh: '22-55周岁有稳定收入者均可申请', en: 'Age 22-55 with stable income can apply', es: 'Edad 22-55 con ingresos estables' } },
+    'business': { name: { zh: '经营性贷款', en: 'Business Loan', es: 'Préstamo Comercial' }, icon: 'fa-briefcase', amountRange: [50000, 5000000], rateRange: [3.5, 12.99], termRange: [12, 120], defaultRate: 6.99, description: { zh: '支持企业经营扩张', en: 'Support business expansion', es: 'Apoyar expansión empresarial' }, targetAudience: { zh: ['中小企业主', '创业公司'], en: ['Business owners', 'Startups'], es: ['Propietarios', 'Startups'] }, conditions: { zh: ['企业注册满1年', '有实际经营'], en: ['Registered 1+ year', 'Actual business'], es: ['Registrado 1+ año'] }, interestCalc: { zh: '根据企业资质定价', en: 'Pricing based on qualifications', es: 'Precio según calificaciones' }, approvalSteps: { zh: [{ step: 1, name: '企业认证', desc: '提交执照' }, { step: 2, name: '资料审核', desc: '审核经营' }, { step: 3, name: '额度评估', desc: '评估额度' }, { step: 4, name: '签约放款', desc: '签署合同' }], en: [{ step: 1, name: 'Verification', desc: 'Submit license' }, { step: 2, name: 'Review', desc: 'Review business' }, { step: 3, name: 'Assessment', desc: 'Evaluate limit' }, { step: 4, name: 'Sign & Fund', desc: 'Sign contract' }], es: [{ step: 1, name: 'Verificación', desc: 'Presentar licencia' }, { step: 2, name: 'Revisión', desc: 'Revisar negocio' }, { step: 3, name: 'Evaluación', desc: 'Evaluar límite' }, { step: 4, name: 'Firmar', desc: 'Firmar contrato' }] }, riskFactors: { low: { zh: ['经营良好', '收入稳定'], en: ['Good operation', 'Stable income'], es: ['Buena operación'] }, high: { zh: ['经营不稳定', '收入下滑'], en: ['Unstable operation', 'Declining income'], es: ['Operación inestable'] } }, documents: { zh: ['营业执照', '财务报表'], en: ['Business license', 'Financial statements'], es: ['Licencia comercial'] }, tips: { zh: ['准备商业计划书', '抵押贷款利率低'], en: ['Prepare business plan', 'Mortgage has lower rate'], es: ['Preparar plan de negocios'] }, features: { zh: ['额度高', '利率优'], en: ['High limit', 'Favorable rates'], es: ['Alto límite'] }, eligibility: { zh: '注册1年以上企业均可申请', en: ' enterprises registered 1+ year', es: 'Empresas registradas 1+ año' } },
+    'mortgage': { name: { zh: '抵押贷款', en: 'Mortgage Loan', es: 'Préstamo Hipotecario' }, icon: 'fa-home', amountRange: [100000, 10000000], rateRange: [2.5, 7.99], termRange: [60, 360], defaultRate: 4.5, description: { zh: '房产抵押贷款', en: 'Property mortgage loan', es: 'Préstamo con propiedad' }, targetAudience: { zh: ['购房需求者', '需要大额资金者'], en: ['Home buyers', 'Need large funds'], es: ['Compradores de casa'] }, conditions: { zh: ['有房产产权', '产权清晰'], en: ['Property owner', 'Clear title'], es: ['Propietario de propiedad'] }, interestCalc: { zh: '房产抵押利率低', en: 'Property collateral lower rate', es: 'Colateral de propiedad tasa más baja' }, approvalSteps: { zh: [{ step: 1, name: '房产评估', desc: '专业评估' }, { step: 2, name: '材料审核', desc: '审核产权' }, { step: 3, name: '抵押登记', desc: '办理抵押' }, { step: 4, name: '放款完成', desc: '完成登记' }], en: [{ step: 1, name: 'Valuation', desc: 'Professional assessment' }, { step: 2, name: 'Review', desc: 'Review title' }, { step: 3, name: 'Registration', desc: 'Complete process' }, { step: 4, name: 'Funding', desc: 'Finish and disburse' }], es: [{ step: 1, name: 'Valoración', desc: 'Evaluación profesional' }, { step: 2, name: 'Revisión', desc: 'Revisar título' }, { step: 3, name: 'Registro', desc: 'Completar proceso' }, { step: 4, name: 'Financiamiento', desc: 'Terminar y desembolsar' }] }, riskFactors: { low: { zh: ['房产价值高', '产权清晰'], en: ['High value', 'Clear title'], es: ['Alto valor'] }, high: { zh: ['房产价值低', '产权纠纷'], en: ['Low value', 'Title disputes'], es: ['Bajo valor'] } }, documents: { zh: ['房产证', '身份证'], en: ['Property deed', 'ID'], es: ['Escritura'] }, tips: { zh: ['估值高额度大', '等额本息压力小'], en: ['Higher valuation = higher limit', 'Equal principal easier'], es: ['Mayor valoración = mayor límite'] }, features: { zh: ['额度高', '利率低', '期限长'], en: ['High limit', 'Low rate', 'Long term'], es: ['Alto límite', 'Tasa baja'] }, eligibility: { zh: '拥有房产产权者均可申请', en: 'Property owners can apply', es: 'Propietarios de propiedades' } },
+    'credit': { name: { zh: '信用贷款', en: 'Credit Loan', es: 'Préstamo de Crédito' }, icon: 'fa-credit-card', amountRange: [3000, 500000], rateRange: [6.99, 24.99], termRange: [6, 48], defaultRate: 12.99, description: { zh: '无需抵押快速放款', en: 'No collateral fast funding', es: 'Sin garantía financiamiento rápido' }, targetAudience: { zh: ['信用良好者', '急需资金者'], en: ['Good credit', 'Need funds urgently'], es: ['Buen crédito'] }, conditions: { zh: ['信用记录优秀', '有稳定收入'], en: ['Excellent credit', 'Stable income'], es: ['Crédito excelente'] }, interestCalc: { zh: '纯信用定价', en: 'Pure credit pricing', es: 'Precio de crédito puro' }, approvalSteps: { zh: [{ step: 1, name: '信用评估', desc: '系统评估' }, { step: 2, name: '身份认证', desc: '人脸识别' }, { step: 3, name: '额度审批', desc: '快速审批' }, { step: 4, name: '即时放款', desc: '分钟到账' }], en: [{ step: 1, name: 'Credit Assessment', desc: 'Auto evaluation' }, { step: 2, name: 'Identity', desc: 'Facial recognition' }, { step: 3, name: 'Approval', desc: 'Fast approval' }, { step: 4, name: 'Funding', desc: 'Minutes' }], es: [{ step: 1, name: 'Evaluación', desc: 'Auto evaluación' }, { step: 2, name: 'Identidad', desc: 'Reconocimiento facial' }, { step: 3, name: 'Aprobación', desc: 'Aprobación rápida' }, { step: 4, name: 'Financiamiento', desc: 'Minutos' }] }, riskFactors: { low: { zh: ['信用评分高', '收入稳定'], en: ['High credit score', 'Stable income'], es: ['Alta calificación'] }, high: { zh: ['信用评分低', '收入不稳定'], en: ['Low credit score', 'Unstable income'], es: ['Baja calificación'] } }, documents: { zh: ['身份证', '手机号'], en: ['ID', 'Mobile'], es: ['Identificación'] }, tips: { zh: ['保持良好信用', '不要多头借贷'], en: ['Maintain good credit', 'Avoid multiple loans'], es: ['Mantener buen crédito'] }, features: { zh: ['无需抵押', '快速审批'], en: ['No collateral', 'Fast approval'], es: ['Sin garantía'] }, eligibility: { zh: '18-60周岁信用良好者', en: 'Age 18-60 with good credit', es: 'Edad 18-60 con buen crédito' } },
+    'student': { name: { zh: '助学贷款', en: 'Student Loan', es: 'Préstamo Estudiantil' }, icon: 'fa-graduation-cap', amountRange: [10000, 250000], rateRange: [2.0, 6.99], termRange: [60, 240], defaultRate: 4.0, description: { zh: '支持教育费用', en: 'Support education expenses', es: 'Apoyar gastos educativos' }, targetAudience: { zh: ['在读学生', '留学生'], en: ['Current students', 'International students'], es: ['Estudiantes actuales'] }, conditions: { zh: ['在读或录取', '有担保人'], en: ['Current or accepted', 'Has guarantor'], es: ['Actual o aceptado'] }, interestCalc: { zh: '教育专项利率优惠', en: 'Education specific favorable rate', es: 'Tasa favorable para educación' }, approvalSteps: { zh: [{ step: 1, name: '学籍验证', desc: '验证身份' }, { step: 2, name: '学费确认', desc: '确认金额' }, { step: 3, name: '担保审核', desc: '监护人担保' }, { step: 4, name: '学费直付', desc: '支付学校' }], en: [{ step: 1, name: 'Verification', desc: 'Verify status' }, { step: 2, name: 'Confirmation', desc: 'Confirm amount' }, { step: 3, name: 'Guarantor', desc: 'Guardian guarantee' }, { step: 4, name: 'Direct Payment', desc: 'Pay school' }], es: [{ step: 1, name: 'Verificación', desc: 'Verificar estado' }, { step: 2, name: 'Confirmación', desc: 'Confirmar monto' }, { step: 3, name: 'Garante', desc: 'Garantía del tutor' }, { step: 4, name: 'Pago Directo', desc: 'Pagar escuela' }] }, riskFactors: { low: { zh: ['学校声誉好', '有担保人'], en: ['Reputable school', 'Has guarantor'], es: ['Universidad de renombre'] }, high: { zh: ['学校排名低', '无担保人'], en: ['Low-ranked school', 'No guarantor'], es: ['Universidad de bajo rango'] } }, documents: { zh: ['学生证', '录取通知书'], en: ['Student ID', 'Acceptance letter'], es: ['Tarjeta de estudiante'] }, tips: { zh: ['在校期间可只还息', '毕业有宽限期'], en: ['Interest-only during study', 'Grace period after graduation'], es: ['Solo interés durante estudio'] }, features: { zh: ['利率低', '期限长'], en: ['Low rate', 'Long term'], es: ['Tasa baja'] }, eligibility: { zh: '在读或录取学生', en: 'Current or accepted students', es: 'Estudiantes actuales o aceptados' } },
+    'auto': { name: { zh: '汽车贷款', en: 'Auto Loan', es: 'Préstamo de Auto' }, icon: 'fa-car', amountRange: [10000, 150000], rateRange: [3.9, 14.99], termRange: [12, 84], defaultRate: 6.99, description: { zh: '购车资金无忧', en: 'Hassle-free car financing', es: 'Financiamiento de auto sin complicaciones' }, targetAudience: { zh: ['计划购车者', '需要换车者'], en: ['Planning to buy car', 'Need new car'], es: ['Planeando comprar auto'] }, conditions: { zh: ['18-60周岁', '有稳定收入'], en: ['Age 18-60', 'Stable income'], es: ['Edad 18-60'] }, interestCalc: { zh: '车辆抵押利率', en: 'Vehicle collateral rate', es: 'Tasa de vehículo como garantía' }, approvalSteps: { zh: [{ step: 1, name: '车型选择', desc: '确定方案' }, { step: 2, name: '资质审核', desc: '评估能力' }, { step: 3, name: '车辆抵押', desc: '办理抵押' }, { step: 4, name: '提车放款', desc: '支付提车' }], en: [{ step: 1, name: 'Selection', desc: 'Confirm plan' }, { step: 2, name: 'Qualification', desc: 'Assess ability' }, { step: 3, name: 'Collateral', desc: 'Complete lien' }, { step: 4, name: 'Pickup', desc: 'Pay and deliver' }], es: [{ step: 1, name: 'Selección', desc: 'Confirmar plan' }, { step: 2, name: 'Calificación', desc: 'Evaluar capacidad' }, { step: 3, name: 'Garantía', desc: 'Completar gravamen' }, { step: 4, name: 'Recogida', desc: 'Pagar y entregar' }] }, riskFactors: { low: { zh: ['收入稳定', '首付比例高'], en: ['Stable income', 'High down payment'], es: ['Ingresos estables'] }, high: { zh: ['收入不稳定', '首付比例低'], en: ['Unstable income', 'Low down payment'], es: ['Ingresos inestables'] } }, documents: { zh: ['身份证', '驾驶证'], en: ['ID', 'Driver license'], es: ['Identificación'] }, tips: { zh: ['首付高利率低', '短期省利息'], en: ['Higher down = lower rate', 'Short term saves interest'], es: ['Mayor pago inicial = tasas más bajas'] }, features: { zh: ['新车二手车', '快速审批'], en: ['New and used', 'Fast approval'], es: ['Nuevos y usados'] }, eligibility: { zh: '18-60周岁有稳定收入者', en: 'Age 18-60 with stable income', es: 'Edad 18-60 con ingresos estables' } },
+    'small-business': { name: { zh: '小微企业贷', en: 'Small Business Loan', es: 'Préstamo para Pequeños Negocios' }, icon: 'fa-store', amountRange: [10000, 1000000], rateRange: [5.99, 18.99], termRange: [12, 60], defaultRate: 9.99, description: { zh: '流程简化放款快', en: 'Simplified process fast funding', es: 'Proceso simplificado financiamiento rápido' }, targetAudience: { zh: ['小微企业主', '个体工商户'], en: ['Small business owners', 'Self-employed'], es: ['Propietarios de pequeñas empresas'] }, conditions: { zh: ['经营满6个月', '有实际流水'], en: ['Operating 6+ months', 'Actual transactions'], es: ['Operando 6+ meses'] }, interestCalc: { zh: '基于流水快速评估', en: 'Quick assessment based on transactions', es: 'Evaluación rápida basada en transacciones' }, approvalSteps: { zh: [{ step: 1, name: '店铺认证', desc: '验证信息' }, { step: 2, name: '流水审核', desc: '审核数据' }, { step: 3, name: '额度评估', desc: '快速评估' }, { step: 4, name: '极速放款', desc: '当天到账' }], en: [{ step: 1, name: 'Verification', desc: 'Verify info' }, { step: 2, name: 'Review', desc: 'Review data' }, { step: 3, name: 'Assessment', desc: 'Quick evaluation' }, { step: 4, name: 'Funding', desc: 'Same day' }], es: [{ step: 1, name: 'Verificación', desc: 'Verificar info' }, { step: 2, name: 'Revisión', desc: 'Revisar datos' }, { step: 3, name: 'Evaluación', desc: 'Evaluación rápida' }, { step: 4, name: 'Financiamiento', desc: 'Mismo día' }] }, riskFactors: { low: { zh: ['流水稳定', '评分高'], en: ['Stable flow', 'High rating'], es: ['Flujo estable'] }, high: { zh: ['流水波动', '评分低'], en: ['Volatile flow', 'Low rating'], es: ['Flujo volátil'] } }, documents: { zh: ['营业执照', '店铺截图'], en: ['Business license', 'Store screenshots'], es: ['Licencia comercial'] }, tips: { zh: ['流水好额度高', '按时还款提额'], en: ['Better flow = higher limit', 'On-time increases limit'], es: ['Mejor flujo = límite más alto'] }, features: { zh: ['无需抵押', '审批快'], en: ['No collateral', 'Fast approval'], es: ['Sin garantía'] }, eligibility: { zh: '经营6个月以上企业', en: 'Business operating 6+ months', es: 'Negocio operando 6+ meses' } },
+    'medical': { name: { zh: '医疗贷款', en: 'Medical Loan', es: 'Préstamo Médico' }, icon: 'fa-heartbeat', amountRange: [5000, 200000], rateRange: [4.99, 16.99], termRange: [12, 60], defaultRate: 8.99, description: { zh: '支持医疗健康需求', en: 'Support medical health needs', es: 'Apoyar necesidades de salud' }, targetAudience: { zh: ['需要手术者', '医美需求者'], en: ['Need surgery', 'Medical beauty seekers'], es: ['Necesitando cirugía'] }, conditions: { zh: ['18-55周岁', '有稳定收入'], en: ['Age 18-55', 'Stable income'], es: ['Edad 18-55'] }, interestCalc: { zh: '医疗专项分期', en: 'Medical installment', es: 'Instalación médica' }, approvalSteps: { zh: [{ step: 1, name: '项目确认', desc: '确认项目' }, { step: 2, name: '医院合作', desc: '系统对接' }, { step: 3, name: '资质审核', desc: '评估能力' }, { step: 4, name: '治疗分期', desc: '开始计划' }], en: [{ step: 1, name: 'Confirmation', desc: 'Confirm procedure' }, { step: 2, name: 'Partnership', desc: 'Connect system' }, { step: 3, name: 'Review', desc: 'Assess ability' }, { step: 4, name: 'Treatment', desc: 'Start plan' }], es: [{ step: 1, name: 'Confirmación', desc: 'Confirmar procedimiento' }, { step: 2, name: 'Asociación', desc: 'Conectar sistema' }, { step: 3, name: 'Revisión', desc: 'Evaluar capacidad' }, { step: 4, name: 'Tratamiento', desc: 'Iniciar plan' }] }, riskFactors: { low: { zh: ['收入稳定', '项目必要'], en: ['Stable income', 'Necessary procedure'], es: ['Ingresos estables'] }, high: { zh: ['收入不稳定', '非必要项目'], en: ['Unstable income', 'Non-essential'], es: ['Ingresos inestables'] } }, documents: { zh: ['身份证', '诊断证明'], en: ['ID', 'Diagnosis'], es: ['Identificación'] }, tips: { zh: ['选择正规医院', '了解治疗方案'], en: ['Choose accredited hospital', 'Understand plan'], es: ['Elegir hospital acreditado'] }, features: { zh: ['项目全覆盖', '保护隐私'], en: ['All procedures covered', 'Privacy protected'], es: ['Todos los procedimientos cubiertos'] }, eligibility: { zh: '18-55周岁有稳定收入者', en: 'Age 18-55 with stable income', es: 'Edad 18-55 con ingresos estables' } },
+    'debt-consolidation': { name: { zh: '债务整合贷款', en: 'Debt Consolidation Loan', es: 'Préstamo de Consolidación de Deudas' }, icon: 'fa-balance-scale', amountRange: [10000, 500000], rateRange: [5.49, 19.99], termRange: [24, 120], defaultRate: 11.99, description: { zh: '合并债务统一还款', en: 'Consolidate debts unified repayment', es: 'Consolidar deudas pago unificado' }, targetAudience: { zh: ['多笔债务者', '信用卡债务者'], en: ['Multiple debts', 'Credit card debt'], es: ['Múltiples deudas'] }, conditions: { zh: ['有稳定收入', '负债可控'], en: ['Stable income', 'Controllable debt'], es: ['Ingresos estables'] }, interestCalc: { zh: '低息置换高息债务', en: 'Lower rate replaces higher rate debts', es: 'Tasa más baja reemplaza deudas de tasa más alta' }, approvalSteps: { zh: [{ step: 1, name: '债务梳理', desc: '整理债务' }, { step: 2, name: '资质评估', desc: '评估能力' }, { step: 3, name: '方案定制', desc: '制定方案' }, { step: 4, name: '统一还款', desc: '一次性清账' }], en: [{ step: 1, name: 'Review', desc: 'Organize debts' }, { step: 2, name: 'Assessment', desc: 'Evaluate ability' }, { step: 3, name: 'Plan', desc: 'Create plan' }, { step: 4, name: 'Unified', desc: 'One-time settlement' }], es: [{ step: 1, name: 'Revisión', desc: 'Organizar deudas' }, { step: 2, name: 'Evaluación', desc: 'Evaluar capacidad' }, { step: 3, name: 'Plan', desc: 'Crear plan' }, { step: 4, name: 'Unificado', desc: 'Liquidación de una vez' }] }, riskFactors: { low: { zh: ['收入稳定', '有还款计划'], en: ['Stable income', 'Has repayment plan'], es: ['Ingresos estables'] }, high: { zh: ['收入不稳定', '无还款计划'], en: ['Unstable income', 'No plan'], es: ['Ingresos inestables'] } }, documents: { zh: ['身份证', '债务清单'], en: ['ID', 'Debt list'], es: ['Identificación'] }, tips: { zh: ['不要新增债务', '改善消费习惯'], en: ["Don't add new debt", 'Improve spending habits'], es: ['No adquirir nuevas deudas'] }, features: { zh: ['化繁为简', '月供可控'], en: ['Simplify into one', 'Manageable payments'], es: ['Simplificar en una'] }, eligibility: { zh: '有稳定收入负债可控者', en: 'Stable income controllable debt', es: 'Ingresos estables deuda controlable' } }
+};
+
+let selectedLoanType = null, isTermInYears = true, selectedRepaymentMethod = 'equal-principal', pieChart = null, comparisonChart = null, currentSchedule = [], currentResults = null;
+const currencySelect = document.getElementById('currency'), currencySymbol = document.getElementById('currencySymbol'), loanAmount = document.getElementById('loanAmount'), loanTermInput = document.getElementById('loanTermInput'), loanTermSlider = document.getElementById('loanTermSlider'), interestRate = document.getElementById('interestRate'), interestRateSlider = document.getElementById('interestRateSlider'), calculateBtn = document.getElementById('calculateBtn'), resetBtn = document.getElementById('resetBtn'), resultsSection = document.getElementById('resultsSection'), calculatorSection = document.getElementById('calculatorSection'), scheduleToggle = document.getElementById('scheduleToggle'), scheduleContent = document.getElementById('scheduleContent'), scheduleArrow = document.getElementById('scheduleArrow'), scheduleBody = document.getElementById('scheduleBody'), schedulePage = document.getElementById('schedulePage'), exportBtn = document.getElementById('exportBtn'), errorMessages = document.getElementById('errorMessages'), errorList = document.getElementById('errorList'), termYearsBtn = document.getElementById('termYears'), termMonthsBtn = document.getElementById('termMonths'), loanDetailsModal = document.getElementById('loanDetailsModal'), selectLoanBtn = document.getElementById('selectLoanBtn'), maxTermDisplay = document.getElementById('maxTermDisplay'), amountRangeHint = document.getElementById('amountRangeHint'), minRateDisplay = document.getElementById('minRateDisplay'), maxRateDisplay = document.getElementById('maxRateDisplay');
+
+function init() { setupEventListeners(); setTimeout(() => { if (typeof i18n !== 'undefined') { i18n.on('languageChanged', handleLanguageChange); } }, 100); }
+function setupEventListeners() { currencySelect.addEventListener('change', updateCurrencySymbol); loanAmount.addEventListener('input', handleAmountInput); loanAmount.addEventListener('blur', validateAmount); loanTermSlider.addEventListener('input', syncTermSliderToInput); loanTermInput.addEventListener('input', syncTermInputToSlider); interestRateSlider.addEventListener('input', syncRateSliderToInput); interestRate.addEventListener('input', handleRateInput); interestRate.addEventListener('blur', syncRateInputToSlider); termYearsBtn.addEventListener('click', () => setTermUnit(true)); termMonthsBtn.addEventListener('click', () => setTermUnit(false)); calculateBtn.addEventListener('click', calculateLoan); resetBtn.addEventListener('click', resetForm); scheduleToggle.addEventListener('click', toggleSchedule); exportBtn.addEventListener('click', exportSchedule); selectLoanBtn.addEventListener('click', selectThisLoan); document.querySelectorAll('.method-btn').forEach(btn => { btn.addEventListener('click', function() { setRepaymentMethod(this.id.replace('method-', '')); }); }); document.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !resultsSection.classList.contains('hidden')) { calculateLoan(); } }); loanDetailsModal.addEventListener('click', (e) => { if (e.target === loanDetailsModal) { closeModal(); } }); if (typeof i18n !== 'undefined') { i18n.on('languageChanged', handleLanguageChange); } }
+function handleLanguageChange(event) { if (selectedLoanType) { updateLoanCardsDisplay(); } if (currentResults && !resultsSection.classList.contains('hidden')) { displayResults(currentResults); } if (!loanDetailsModal.classList.contains('hidden')) { showLoanDetails(selectedLoanType); } }
+function updateLoanCardsDisplay() { const cards = document.querySelectorAll('.loan-card'); const loanKeys = Object.keys(loanProducts); cards.forEach((card, index) => { const loanKey = loanKeys[index]; const product = loanProducts[loanKey]; if (product) { const lang = (typeof i18n !== 'undefined' && i18n.getCurrentLanguage()) || 'zh'; const getText = (obj) => { if (typeof obj === 'object' && obj !== null) { return obj[lang] || obj.zh || obj.en || obj; } return obj; }; const nameAttrEl = card.querySelector('[data-i18n^="loan."][data-i18n$=".name"]'); const descAttrEl = card.querySelector('[data-i18n^="loan."][data-i18n$=".desc"]'); if (nameAttrEl) { nameAttrEl.textContent = getText(product.name); } if (descAttrEl) { descAttrEl.textContent = getText(product.description); } } }); }
+function updateCurrencySymbol() { currencySymbol.textContent = currencySymbols[currencySelect.value] || '$'; }
+function formatAmountInput(input) { let value = input.value.replace(/[^\d]/g, ''); if (value) { value = parseInt(value).toLocaleString(); } input.value = value; }
+function handleAmountInput(e) { formatAmountInput(e.target); }
+function validateAmount() { const product = loanProducts[selectedLoanType]; if (!product) return true; const value = parseFloat(loanAmount.value.replace(/,/g, '')); if (!value || value <= 0) { loanAmount.classList.add('error-border'); return false; } if (value < product.amountRange[0] || value > product.amountRange[1]) { loanAmount.classList.add('error-border'); return false; } loanAmount.classList.remove('error-border'); loanAmount.classList.add('success-border'); return true; }
+function syncTermSliderToInput() { loanTermInput.value = loanTermSlider.value; }
+function syncTermInputToSlider() { const value = parseInt(loanTermInput.value) || 1; const max = isTermInYears ? 30 : 360; const clamped = Math.max(1, Math.min(max, value)); loanTermInput.value = clamped; loanTermSlider.value = clamped; }
+function setTermUnit(years) { isTermInYears = years; if (years) { termYearsBtn.classList.add('bg-primary-100', 'text-primary-700', 'active'); termYearsBtn.classList.remove('bg-gray-100', 'text-gray-600'); termMonthsBtn.classList.remove('bg-primary-100', 'text-primary-700', 'active'); termMonthsBtn.classList.add('bg-gray-100', 'text-gray-600'); if (parseInt(loanTermInput.value) > 30) { loanTermInput.value = Math.round(parseInt(loanTermInput.value) / 12); loanTermSlider.value = loanTermInput.value; } loanTermSlider.max = 30; loanTermInput.max = 30; maxTermDisplay.innerHTML = '30 <span data-i18n="form.years">年</span></span>'; } else { termMonthsBtn.classList.add('bg-primary-100', 'text-primary-700', 'active'); termMonthsBtn.classList.remove('bg-gray-100', 'text-gray-600'); termYearsBtn.classList.remove('bg-primary-100', 'text-primary-700', 'active'); termYearsBtn.classList.add('bg-gray-100', 'text-gray-600'); loanTermInput.value = parseInt(loanTermInput.value) * 12; loanTermSlider.value = loanTermInput.value; loanTermSlider.max = 360; loanTermInput.max = 360; maxTermDisplay.innerHTML = '360 <span data-i18n="form.months">月</span></span>'; } }
+function syncRateSliderToInput() { interestRate.value = parseFloat(interestRateSlider.value).toFixed(2); }
+function syncRateInputToSlider() { const value = parseFloat(interestRate.value) || 0.1; const clamped = Math.max(0.1, Math.min(20, value)); interestRate.value = clamped.toFixed(2); interestRateSlider.value = clamped; }
+function handleRateInput(e) { const input = e.target; let value = input.value.replace(/[^\d.]/g, ''); if (value.includes('.')) { const parts = value.split('.'); if (parts[1].length > 2) { parts[1] = parts[1].substring(0, 2); } value = parts.join('.'); } input.value = value; }
+function setRepaymentMethod(method) { selectedRepaymentMethod = method; document.querySelectorAll('.method-btn').forEach(btn => { btn.classList.remove('bg-primary-100', 'text-primary-700', 'active'); btn.classList.add('bg-gray-100', 'text-gray-600'); }); const activeBtn = document.getElementById(`method-${method}`); if (activeBtn) { activeBtn.classList.remove('bg-gray-100', 'text-gray-600'); activeBtn.classList.add('bg-primary-100', 'text-primary-700', 'active'); } }
+function updateAmountRangeHint() { const product = loanProducts[selectedLoanType]; if (!product) return; amountRangeHint.textContent = `请输入符合所选贷款类型的金额范围: ${currencySymbols['USD']}${product.amountRange[0].toLocaleString()} - ${currencySymbols['USD']}${product.amountRange[1].toLocaleString()}`; }
+
+function showLoanDetails(type) {
+    try {
+        const modal = document.getElementById('loanDetailsModal');
+        if (!modal) { alert('错误：模态框元素不存在'); return; }
+        if (typeof loanProducts === 'undefined') { alert('错误：贷款产品数据未加载'); return; }
+        const product = loanProducts[type];
+        if (!product) { alert('错误：未找到贷款产品: ' + type); return; }
+        selectedLoanType = type;
+        const title = typeof product.name === 'object' ? product.name.zh : product.name;
+        const subtitle = typeof product.name === 'object' ? product.name.en : 'Product Details';
+        document.getElementById('modalLoanTitle').textContent = title;
+        document.getElementById('modalLoanSubtitle').textContent = subtitle;
+        document.getElementById('modalAmount').textContent = `$${product.amountRange[0].toLocaleString()} - $${product.amountRange[1].toLocaleString()}`;
+        document.getElementById('modalRate').textContent = `${product.rateRange[0]}% - ${product.rateRange[1]}%`;
+        document.getElementById('modalTerm').textContent = `${product.termRange[0]} - ${product.termRange[1]}个月`;
+        const iconContainer = document.getElementById('modalLoanIcon');
+        iconContainer.className = 'w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center';
+        iconContainer.innerHTML = `<i class="fa ${product.icon} text-white text-2xl"></i>`;
+        const lang = (typeof i18n !== 'undefined' && i18n.getCurrentLanguage()) || 'zh';
+        const getText = (obj) => { if (typeof obj === 'object' && obj !== null) { return obj[lang] || obj.zh || obj.en || obj; } return obj; };
+        document.getElementById('modalTargetAudience').innerHTML = getText(product.targetAudience).map(item => `<li>${item}</li>`).join('');
+        document.getElementById('modalConditions').innerHTML = getText(product.conditions).map(item => `<li>${item}</li>`).join('');
+        document.getElementById('modalInterestCalc').innerHTML = `<p class="mb-2">${getText(product.interestCalc)}</p><p class="font-mono text-sm bg-white p-2 rounded border border-gray-200">月供 = [本金 × 月利率 × (1+月利率)^期数] ÷ [(1+月利率)^期数 - 1]</p>`;
+        document.getElementById('modalApproval').innerHTML = getText(product.approvalSteps).map(step => `<div class="text-center"><div class="w-10 h-10 ${step.step === 4 ? 'bg-success/20' : 'bg-primary-100'} rounded-full flex items-center justify-center mx-auto mb-2"><span class="font-bold ${step.step === 4 ? 'text-success' : 'text-primary-600'}">${step.step}</span></div><p class="text-sm text-gray-600 font-medium">${step.name}</p><p class="text-xs text-gray-400">${step.desc}</p></div>`).join('');
+        document.getElementById('modalRisk').innerHTML = `<div class="bg-green-50 rounded-xl p-4"><p class="font-medium text-green-700 mb-2">低风险因素</p><ul class="text-sm text-gray-600 space-y-1">${getText(product.riskFactors.low).map(item => `<li>• ${item}</li>`).join('')}</ul></div><div class="bg-red-50 rounded-xl p-4"><p class="font-medium text-red-700 mb-2">高风险因素</p><ul class="text-sm text-gray-600 space-y-1">${getText(product.riskFactors.high).map(item => `<li>• ${item}</li>`).join('')}</ul></div>`;
+        const docs = getText(product.documents); const midPoint = Math.ceil(docs.length / 2);
+        document.getElementById('modalDocuments').innerHTML = `<div class="space-y-2">${docs.slice(0, midPoint).map(doc => `<div class="flex items-center space-x-2 text-gray-700"><i class="fa fa-check text-success"></i><span>${doc}</span></div>`).join('')}</div><div class="space-y-2">${docs.slice(midPoint).map(doc => `<div class="flex items-center space-x-2 text-gray-700"><i class="fa fa-check text-success"></i><span>${doc}</span></div>`).join('')}</div>`;
+        document.getElementById('modalFeatures').innerHTML = getText(product.features).map(f => `<div class="bg-blue-50 rounded-lg p-3 flex items-center space-x-2"><i class="fa fa-star text-primary-500"></i><span class="text-sm text-gray-700">${f}</span></div>`).join('');
+        document.getElementById('modalEligibility').innerHTML = `<p class="text-sm text-gray-700"><i class="fa fa-info-circle text-yellow-600 mr-2"></i>${getText(product.eligibility)}</p>`;
+        modal.classList.remove('hidden');
+        modal.classList.add('animate-bounce-in');
+    } catch (error) { console.error('Error in showLoanDetails:', error); alert('打开详情失败: ' + error.message); }
+}
+
+function closeModal() { const modal = document.getElementById('loanDetailsModal'); if (modal) { modal.classList.add('hidden'); } }
+function testModal() { const modal = document.getElementById('loanDetailsModal'); if (!modal) { alert('错误：模态框元素不存在'); return; } if (typeof loanProducts === 'undefined') { alert('错误：贷款产品数据未定义'); return; } try { modal.classList.remove('hidden'); modal.classList.add('animate-bounce-in'); alert('测试成功！模态框已显示'); } catch (error) { alert('测试失败: ' + error.message); } }
+function selectThisLoan() { const product = loanProducts[selectedLoanType]; if (!product) return; const lang = (typeof i18n !== 'undefined' && i18n.getCurrentLanguage()) || 'zh'; const getText = (obj) => { if (typeof obj === 'object' && obj !== null) { return obj[lang] || obj.zh || obj.en || obj; } return obj; }; document.getElementById('selectedLoanName').textContent = getText(product.name); document.getElementById('selectedLoanDesc').textContent = getText(product.description); const selectedIcon = document.getElementById('selectedLoanIcon'); selectedIcon.className = `w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center`; selectedIcon.innerHTML = `<i class="fa ${product.icon} text-white text-3xl"></i>`; minRateDisplay.textContent = `${product.rateRange[0]}%`; maxRateDisplay.textContent = `${product.rateRange[1]}%`; interestRate.value = product.defaultRate.toFixed(2); interestRateSlider.value = product.defaultRate; const maxTerm = Math.min(30, Math.floor(product.termRange[1] / 12)); const minTerm = Math.min(1, Math.ceil(product.termRange[0] / 12)); loanTermSlider.max = maxTerm; loanTermInput.max = maxTerm; loanTermSlider.min = minTerm; loanTermInput.min = minTerm; loanTermSlider.value = Math.min(30, maxTerm); loanTermInput.value = Math.min(30, maxTerm); const amountHint = i18n ? i18n.t('form.amountHint') : '请输入符合所选贷款类型的金额范围'; amountRangeHint.textContent = `${amountHint}: ${currencySymbols['USD']}${product.amountRange[0].toLocaleString()} - ${currencySymbols['USD']}${product.amountRange[1].toLocaleString()}`; calculatorSection.classList.remove('hidden'); calculatorSection.classList.add('animate-slide-up'); closeModal(); calculatorSection.scrollIntoView({ behavior: 'smooth' }); }
+function changeLoanType() { calculatorSection.classList.add('hidden'); resultsSection.classList.add('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function showErrors(errors) { errorList.innerHTML = ''; errors.forEach(error => { const li = document.createElement('li'); li.textContent = error; errorList.appendChild(li); }); errorMessages.classList.remove('hidden'); errorMessages.classList.add('animate-fade-in'); }
+function hideErrors() { errorMessages.classList.add('hidden'); }
+function validateInputs() { const errors = []; const product = loanProducts[selectedLoanType]; const amount = parseFloat(loanAmount.value.replace(/,/g, '')); if (!amount || amount <= 0) { loanAmount.classList.add('error-border'); errors.push(i18n ? i18n.t('error.amount') : '请输入有效的贷款金额'); } else if (product && (amount < product.amountRange[0] || amount > product.amountRange[1])) { loanAmount.classList.add('error-border'); errors.push(i18n ? i18n.t('error.amountRange') : '贷款金额超出所选产品范围'); } else { loanAmount.classList.remove('error-border'); } const term = parseInt(loanTermInput.value); const maxTerm = isTermInYears ? 30 : 360; if (!term || term < 1 || term > maxTerm) { loanTermInput.classList.add('error-border'); errors.push(i18n ? i18n.t('error.term') : '请输入有效的贷款期限'); } else { loanTermInput.classList.remove('error-border'); } const rate = parseFloat(interestRate.value); if (!rate || rate < 0.1 || rate > 20) { interestRate.classList.add('error-border'); errors.push(i18n ? i18n.t('error.rate') : '请输入有效的年利率'); } else if (product && (rate < product.rateRange[0] || rate > product.rateRange[1])) { interestRate.classList.add('error-border'); errors.push(i18n ? i18n.t('error.rateRange') : '年利率超出允许范围'); } else { interestRate.classList.remove('error-border'); } if (errors.length > 0) { showErrors(errors); return false; } hideErrors(); return true; }
+
+function calculateLoan() {
+    if (!selectedLoanType) { alert(i18n ? i18n.t('prompt.selectLoan') : '请先选择贷款产品类型'); return; }
+    if (!validateInputs()) return;
+    const principal = parseFloat(loanAmount.value.replace(/,/g, ''));
+    let term = parseInt(loanTermInput.value);
+    const annualRate = parseFloat(interestRate.value);
+    const currency = currencySelect.value;
+    if (isTermInYears) { term = term * 12; }
+    const monthlyRate = annualRate / 100 / 12;
+    let schedule, monthlyPayment;
+    switch (selectedRepaymentMethod) {
+        case 'equal-principal': ({ schedule, monthlyPayment } = calculateEqualPrincipalAndInterest(principal, monthlyRate, term)); break;
+        case 'equal-payment': ({ schedule, monthlyPayment } = calculateEqualPrincipal(principal, monthlyRate, term)); break;
+        case 'interest-only': ({ schedule, monthlyPayment } = calculateInterestOnly(principal, monthlyRate, term)); break;
+        case 'balloon': ({ schedule, monthlyPayment } = calculateBalloon(principal, monthlyRate, term)); break;
+        default: ({ schedule, monthlyPayment } = calculateEqualPrincipalAndInterest(principal, monthlyRate, term));
+    }
+    currentSchedule = schedule;
+    const totalPayment = schedule.reduce((sum, p) => sum + p.paymentAmount, 0);
+    const totalInterest = schedule.reduce((sum, p) => sum + p.interest, 0);
+    currentResults = { principal, term, annualRate, monthlyPayment, totalPayment, totalInterest, currency };
+    updateResults(monthlyPayment, totalPayment, totalInterest, principal, term, annualRate, currency);
+    updateScheduleTable(schedule, currency);
+    updatePieChart(principal, totalInterest, currency);
+    updateComparisonChart(principal, annualRate, term, currency);
+    updateApplicationTips();
+    resultsSection.classList.remove('hidden');
+    resultsSection.classList.add('animate-fade-in');
+    setTimeout(() => { resultsSection.scrollIntoView({ behavior: 'smooth' }); }, 100);
+}
+
+function calculateEqualPrincipalAndInterest(principal, monthlyRate, months) { const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1); const schedule = []; let balance = principal; for (let i = 1; i <= months; i++) { const interest = balance * monthlyRate; const principalPayment = monthlyPayment - interest; balance -= principalPayment; schedule.push({ period: i, paymentAmount: monthlyPayment, principal: principalPayment, interest: interest, balance: Math.max(0, balance) }); } return { schedule, monthlyPayment }; }
+function calculateEqualPrincipal(principal, monthlyRate, months) { const schedule = []; let balance = principal; const principalPayment = principal / months; let monthlyPayment = 0; for (let i = 1; i <= months; i++) { const interest = balance * monthlyRate; monthlyPayment = principalPayment + interest; balance -= principalPayment; schedule.push({ period: i, paymentAmount: monthlyPayment, principal: principalPayment, interest: interest, balance: Math.max(0, balance) }); } return { schedule, monthlyPayment }; }
+function calculateInterestOnly(principal, monthlyRate, months) { const schedule = []; const interest = principal * monthlyRate; for (let i = 1; i <= months; i++) { schedule.push({ period: i, paymentAmount: interest, principal: 0, interest: interest, balance: principal }); } schedule[months - 1].principal = principal; schedule[months - 1].paymentAmount = interest + principal; return { schedule, monthlyPayment: interest }; }
+function calculateBalloon(principal, monthlyRate, months) { const schedule = []; const interest = principal * monthlyRate; const ballonPayment = principal * 0.3; const normalMonths = months - 3; let balance = principal; for (let i = 1; i <= months; i++) { if (i < normalMonths) { schedule.push({ period: i, paymentAmount: interest, principal: 0, interest: interest, balance: principal }); } else if (i === normalMonths) { schedule.push({ period: i, paymentAmount: interest + ballonPayment, principal: ballonPayment, interest: interest, balance: principal - ballonPayment }); } else { schedule.push({ period: i, paymentAmount: balance, principal: balance, interest: 0, balance: 0 }); } } return { schedule, monthlyPayment: interest }; }
+
+function updateResults(monthly, total, interest, principal, term, rate, currency) { const sym = currencySymbols[currency] || '$'; document.getElementById('monthlyCurrency').textContent = sym; document.getElementById('monthlyPayment').textContent = formatNumber(monthly, 2); document.getElementById('totalCurrency').textContent = sym; document.getElementById('totalPayment').textContent = formatNumber(total, 2); document.getElementById('interestCurrency').textContent = sym; document.getElementById('totalInterest').textContent = formatNumber(interest, 2); document.getElementById('resultPrincipal').textContent = sym + formatNumber(principal, 0); document.getElementById('resultRate').textContent = rate.toFixed(2) + '%'; document.getElementById('resultTerm').textContent = term + (i18n && i18n.getCurrentLanguage() === 'en' ? ' months' : i18n && i18n.getCurrentLanguage() === 'es' ? ' meses' : '期'); document.getElementById('resultPayments').textContent = term; }
+function updateScheduleTable(schedule, currency) { scheduleBody.innerHTML = ''; const sym = currencySymbols[currency] || '$'; const itemsPerPage = 12; const totalPages = Math.ceil(schedule.length / itemsPerPage); schedulePage.innerHTML = ''; for (let i = 1; i <= totalPages; i++) { const option = document.createElement('option'); option.value = i; option.textContent = `${(i - 1) * itemsPerPage + 1}-${Math.min(i * itemsPerPage, schedule.length)} / ${schedule.length}`; schedulePage.appendChild(option); } schedulePage.addEventListener('change', () => { renderSchedulePage(schedule, currency, parseInt(schedulePage.value), itemsPerPage); }); renderSchedulePage(schedule, currency, 1, itemsPerPage); }
+function renderSchedulePage(schedule, currency, page, itemsPerPage) { scheduleBody.innerHTML = ''; const sym = currencySymbols[currency] || '$'; const start = (page - 1) * itemsPerPage; const end = Math.min(start + itemsPerPage, schedule.length); for (let i = start; i < end; i++) { const p = schedule[i]; const row = document.createElement('tr'); row.className = i % 2 === 0 ? 'bg-white' : 'bg-gray-50'; row.innerHTML = `<td class="px-6 py-3 text-sm text-gray-800">${p.period}</td><td class="px-6 py-3 text-sm text-right text-gray-800">${sym}${formatNumber(p.paymentAmount, 2)}</td><td class="px-6 py-3 text-sm text-right text-gray-800">${sym}${formatNumber(p.principal, 2)}</td><td class="px-6 py-3 text-sm text-right text-gray-800">${sym}${formatNumber(p.interest, 2)}</td><td class="px-6 py-3 text-sm text-right text-gray-800">${sym}${formatNumber(p.balance, 2)}</td>`; scheduleBody.appendChild(row); } }
+function updatePieChart(principal, totalInterest, currency) { const ctx = document.getElementById('pieChart'); if (pieChart) { pieChart.destroy(); } const sym = currencySymbols[currency] || '$'; pieChart = new Chart(ctx, { type: 'doughnut', data: { labels: [i18n ? i18n.t('chart.principal') : '贷款本金', i18n ? i18n.t('chart.interest') : '利息支出'], datasets: [{ data: [principal, totalInterest], backgroundColor: ['#3b82f6', '#f59e0b'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } }, cutout: '60%' } }); document.getElementById('chartPrincipal').textContent = sym + formatNumber(principal, 2); document.getElementById('chartInterest').textContent = sym + formatNumber(totalInterest, 2); document.getElementById('chartTotal').textContent = sym + formatNumber(principal + totalInterest, 2); const total = principal + totalInterest; document.getElementById('principalPercent').textContent = Math.round((principal / total) * 100); document.getElementById('interestPercent').textContent = Math.round((totalInterest / total) * 100); }
+function updateComparisonChart(principal, annualRate, term, currency) { const ctx = document.getElementById('comparisonChart'); if (comparisonChart) { comparisonChart.destroy(); } const sym = currencySymbols[currency] || '$'; const monthlyRate = annualRate / 100 / 12; const methods = ['equal-principal', 'equal-payment', 'interest-only', 'balloon']; const methodNames = { 'equal-principal': i18n ? i18n.t('method.equalPrincipal') : '等额本息', 'equal-payment': i18n ? i18n.t('method.equalPayment') : '等额本金', 'interest-only': i18n ? i18n.t('method.interestOnly') : '先息后本', 'balloon': i18n ? i18n.t('method.balloon') : '气球贷' }; const totals = {}; methods.forEach(method => { let schedule; switch (method) { case 'equal-principal': ({ schedule } = calculateEqualPrincipalAndInterest(principal, monthlyRate, term)); break; case 'equal-payment': ({ schedule } = calculateEqualPrincipal(principal, monthlyRate, term)); break; case 'interest-only': ({ schedule } = calculateInterestOnly(principal, monthlyRate, term)); break; case 'balloon': ({ schedule } = calculateBalloon(principal, monthlyRate, term)); break; } totals[method] = schedule.reduce((sum, p) => sum + p.paymentAmount, 0); }); comparisonChart = new Chart(ctx, { type: 'bar', data: { labels: methods.map(m => methodNames[m]), datasets: [{ label: i18n ? i18n.t('result.total') : '还款总额', data: methods.map(m => totals[m]), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'] }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => sym + formatNumber(value, 0) } } } } }); }
+function updateApplicationTips() { const product = loanProducts[selectedLoanType]; if (!product) return; const lang = (typeof i18n !== 'undefined' && i18n.getCurrentLanguage()) || 'zh'; const tips = product.tips[lang] || product.tips.zh || []; const tipsContainer = document.getElementById('applicationTips'); tipsContainer.innerHTML = tips.map(tip => `<p class="flex items-start"><i class="fa fa-check-circle text-success mr-2 mt-1"></i><span>${tip}</span></p>`).join(''); }
+function toggleSchedule() { const isHidden = scheduleContent.classList.contains('hidden'); if (isHidden) { scheduleContent.classList.remove('hidden'); scheduleArrow.style.transform = 'rotate(180deg)'; } else { scheduleContent.classList.add('hidden'); scheduleArrow.style.transform = 'rotate(0deg)'; } }
+function exportSchedule() { if (currentSchedule.length === 0) return; const headers = ['期数', '月供', '本金', '利息', '余额']; const csv = [headers.join(',')]; currentSchedule.forEach(row => { csv.push([row.period, row.paymentAmount.toFixed(2), row.principal.toFixed(2), row.interest.toFixed(2), row.balance.toFixed(2)].join(',')); }); const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `还款计划表_${new Date().toISOString().slice(0, 10)}.csv`; link.click(); }
+function resetForm() { loanAmount.value = ''; loanTermInput.value = 30; loanTermSlider.value = 30; interestRate.value = '4.50'; interestRateSlider.value = 4.5; setTermUnit(true); setRepaymentMethod('equal-principal'); hideErrors(); document.querySelectorAll('.success-border').forEach(el => el.classList.remove('success-border')); }
+function displayResults(results) { updateResults(results.monthlyPayment, results.totalPayment, results.totalInterest, results.principal, results.term, results.annualRate, results.currency); updateScheduleTable(currentSchedule, results.currency); updatePieChart(results.principal, results.totalInterest, results.currency); updateComparisonChart(results.principal, results.annualRate, results.term, results.currency); updateApplicationTips(); }
+function formatNumber(num, decimals) { return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
